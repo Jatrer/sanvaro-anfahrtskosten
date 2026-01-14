@@ -1,22 +1,13 @@
 <script>
-/* =========================
-   FESTE DATEN
-========================= */
 const ORIGIN = "Holzweg 15, 97656 Oberstreu, Deutschland";
 
 const CONTACT_EMAIL = "kontakt@sanvaro.de";
 const PHONE_SASCHA = "+4917624740989";
 const PHONE_JUSTIN = "+4917661907607";
 
-/* =========================
-   KOSTENPARAMETER
-========================= */
-const KM_PREIS = 0.67;   // €/km
+const KM_PREIS = 0.67;   // €/km (einfache Strecke!)
 const AUFSCHLAG = 0.10;  // 10 %
 
-/* =========================
-   TEXTE
-========================= */
 const includedText =
 "Die Anfahrtspauschale beinhaltet die komplette Hin- und Rückfahrt, die Fahrtzeit des Teams als Arbeitszeit sowie sämtliche Fahrzeugkosten.";
 
@@ -24,23 +15,17 @@ const individualHint =
 "Die dargestellte Anfahrtspauschale dient als transparente Orientierung. Für individuelle Projekte oder besondere handwerkliche Leistungen erstellen wir Ihnen gerne ein passgenaues Angebot.";
 
 const legalHint =
-"Hinweis: Die Anfahrtspauschale gilt für die reguläre An- und Abfahrt. Bei außergewöhnlichen Umständen (z. B. Sperrungen, extreme Staus, Fähren oder zusätzliche Anfahrten) können Zusatzkosten entstehen. Diese stimmen wir selbstverständlich vorab transparent mit Ihnen ab.";
+"Hinweis: Die Anfahrtspauschale gilt für die reguläre An- und Abfahrt. Bei außergewöhnlichen Umständen (z. B. Sperrungen, extreme Staus, Fähren/Insellage oder zusätzliche Anfahrten) können Zusatzkosten entstehen. Diese stimmen wir selbstverständlich vorab transparent mit Ihnen ab.";
 
 const islandHint =
 "Hinweis: Bei Inselanreisen oder Fährverbindungen können zusätzliche Kosten anfallen. Diese stimmen wir vorab transparent mit Ihnen ab.";
 
-/* =========================
-   HILFSFUNKTIONEN
-========================= */
 function isIsland(text){
   const t = (text || "").toLowerCase();
   return ["insel","sylt","spiekeroog","borkum","norderney","fehmarn","helgoland"]
     .some(k => t.includes(k));
 }
 
-/* =========================
-   ROUTING
-========================= */
 async function geocode(address){
   const res = await fetch(
     `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=de&q=${encodeURIComponent(address)}`
@@ -62,9 +47,6 @@ async function route(a, b){
   };
 }
 
-/* =========================
-   UI / BERECHNUNG
-========================= */
 document.getElementById("calcBtn").addEventListener("click", async () => {
   const dest = document.getElementById("addr").value.trim();
   const out = document.getElementById("out");
@@ -77,10 +59,8 @@ document.getElementById("calcBtn").addEventListener("click", async () => {
     const ziel  = await geocode(dest);
     const r = await route(start, ziel);
 
-    // Hin- & Rückfahrt
-    const kmGesamt = r.km_oneway * 2;
-
-    const grundpreis = kmGesamt * KM_PREIS;
+    // WIE VORHER: NICHT verdoppeln, nur einfache Strecke als Basis
+    const grundpreis = r.km_oneway * KM_PREIS;
     const endpreis = Math.round(grundpreis * (1 + AUFSCHLAG));
 
     const island = isIsland(dest);
