@@ -1,83 +1,169 @@
-<script>
-const ORIGIN = "Holzweg 15, 97656 Oberstreu, Deutschland";
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Anfahrtskosten berechnen | Sanvaro</title>
+</head>
 
+<body style="margin:0;font-family:Arial,Helvetica,sans-serif;background:#f2f2f2;color:#222;">
+
+<!-- HEADER -->
+<div style="background:#1f1f1f;color:#fff;">
+  <div style="max-width:1100px;margin:0 auto;padding:18px 16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;">
+    
+    <div>
+      <div style="font-size:20px;font-weight:700;letter-spacing:1px;">
+        SANVARO GMBH
+      </div>
+      <div style="font-size:13px;color:#ccc;">
+        Weil Qualität kein Zufall ist
+      </div>
+    </div>
+
+    <a href="https://www.sanvaro.de/"
+       style="color:#fff;text-decoration:none;font-size:14px;">
+       Zurück zur Homepage
+    </a>
+  </div>
+</div>
+
+<!-- CONTENT -->
+<div style="max-width:1100px;margin:40px auto;padding:0 16px;">
+
+  <div style="background:#fff;border-radius:14px;padding:24px;box-shadow:0 4px 14px rgba(0,0,0,.08);">
+
+    <h1 style="margin-top:0;">Anfahrtskosten berechnen</h1>
+
+    <p style="color:#666;font-size:15px;">
+      Berechnung nach Straßenroute ab <b>Firmensitz</b>.
+    </p>
+
+    <label style="font-weight:600;">Ihre Adresse</label>
+    <input id="addr"
+      placeholder="Musterstraße 1, 12345 Musterstadt"
+      style="width:100%;padding:14px;border:1px solid #ccc;border-radius:10px;margin-top:6px;font-size:15px;">
+
+    <button id="calcBtn"
+      style="margin-top:14px;padding:14px 22px;border-radius:10px;border:0;background:#1f1f1f;color:#fff;font-size:15px;cursor:pointer;">
+      Anfahrtskosten berechnen
+    </button>
+
+    <div id="out"
+      style="display:none;margin-top:20px;padding:18px;border-radius:12px;background:#f7f7f7;">
+    </div>
+
+  </div>
+
+</div>
+
+<!-- FOOTER -->
+<div style="background:#1f1f1f;color:#ccc;margin-top:60px;">
+  <div style="max-width:1100px;margin:0 auto;padding:20px 16px;display:flex;flex-wrap:wrap;gap:14px;justify-content:space-between;align-items:center;font-size:13px;">
+    <div>© Sanvaro GmbH</div>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;">
+      <a href="https://www.sanvaro.de/" style="color:#ccc;text-decoration:none;">Homepage</a>
+      <a href="https://www.sanvaro.de/impressum/" style="color:#ccc;text-decoration:none;">Impressum</a>
+      <a href="https://www.sanvaro.de/datenschutzerklaerung/" style="color:#ccc;text-decoration:none;">Datenschutz</a>
+    </div>
+  </div>
+</div>
+
+<script>
+/* =========================
+   FESTE DATEN
+========================= */
+const ORIGIN = "Holzweg 15, 97656 Oberstreu, Deutschland";
 const CONTACT_EMAIL = "kontakt@sanvaro.de";
 const PHONE_SASCHA = "+4917624740989";
 const PHONE_JUSTIN = "+4917661907607";
 
-const KM_PREIS = 0.67;   // €/km (einfache Strecke!)
-const AUFSCHLAG = 0.10;  // 10 %
+/* =========================
+   PREISLOGIK
+========================= */
+const ANCHORS = [
+  { km: 10, price: 29 },
+  { km: 20, price: 49 },
+  { km: 30, price: 69 },
+  { km: 40, price: 89 },
+  { km: 60, price: 129 },
+  { km: 80, price: 179 },
+  { km: 120, price: 249 },
+  { km: 160, price: 319 },
+  { km: 200, price: 399 },
+  { km: 300, price: 529 }
+];
+const START_AT_0KM = 19;
 
+function roundTo(v,s){return Math.round(v/s)*s;}
+function calcPrice(km){
+  if(km>300) return null;
+  let pk=0,pp=START_AT_0KM;
+  for(const a of ANCHORS){
+    if(km<=a.km){
+      const t=(km-pk)/(a.km-pk);
+      return roundTo(pp+t*(a.price-pp), km>=200?10:5);
+    }
+    pk=a.km;pp=a.price;
+  }
+}
+
+/* =========================
+   TEXTE
+========================= */
 const includedText =
 "Die Anfahrtspauschale beinhaltet die komplette Hin- und Rückfahrt, die Fahrtzeit des Teams als Arbeitszeit sowie sämtliche Fahrzeugkosten.";
 
 const individualHint =
-"Die dargestellte Anfahrtspauschale dient als transparente Orientierung. Für individuelle Projekte oder besondere handwerkliche Leistungen erstellen wir Ihnen gerne ein passgenaues Angebot.";
+"Die dargestellte Anfahrtspauschale dient als transparente Orientierung. Für individuelle Projekte, besondere handwerkliche Leistungen oder längere Einsätze erstellen wir Ihnen selbstverständlich gerne ein passgenaues Angebot.";
 
 const legalHint =
 "Hinweis: Die Anfahrtspauschale gilt für die reguläre An- und Abfahrt. Bei außergewöhnlichen Umständen (z. B. Sperrungen, extreme Staus, Fähren/Insellage oder zusätzliche Anfahrten) können Zusatzkosten entstehen. Diese stimmen wir selbstverständlich vorab transparent mit Ihnen ab.";
 
 const islandHint =
-"Hinweis: Bei Inselanreisen oder Fährverbindungen können zusätzliche Kosten anfallen. Diese stimmen wir vorab transparent mit Ihnen ab.";
+"Hinweis: Bei Inselanreisen/Fährverbindungen können zusätzliche Kosten (z. B. Fährgebühren oder Insel-Logistik) anfallen. Diese stimmen wir vorab transparent mit Ihnen ab.";
 
 function isIsland(text){
-  const t = (text || "").toLowerCase();
-  return ["insel","sylt","spiekeroog","borkum","norderney","fehmarn","helgoland"]
-    .some(k => t.includes(k));
+  const t=text.toLowerCase();
+  return ["insel","sylt","spiekeroog","borkum","norderney","fehmarn","helgoland"].some(k=>t.includes(k));
 }
 
-async function geocode(address){
-  const res = await fetch(
-    `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=de&q=${encodeURIComponent(address)}`
-  );
-  const data = await res.json();
-  if (!data[0]) throw "Adresse nicht gefunden";
-  return { lon: data[0].lon, lat: data[0].lat };
+/* =========================
+   ROUTING
+========================= */
+async function geocode(a){
+  const r=await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(a)}`);
+  const j=await r.json(); if(!j[0]) throw "Adresse nicht gefunden";
+  return {lon:j[0].lon,lat:j[0].lat};
+}
+async function route(a,b){
+  const r=await fetch(`https://router.project-osrm.org/route/v1/driving/${a.lon},${a.lat};${b.lon},${b.lat}?overview=false`);
+  const j=await r.json();
+  return {km:j.routes[0].distance/1000,min:j.routes[0].duration/60};
 }
 
-async function route(a, b){
-  const res = await fetch(
-    `https://router.project-osrm.org/route/v1/driving/${a.lon},${a.lat};${b.lon},${b.lat}?overview=false`
-  );
-  const data = await res.json();
-  if (!data.routes || !data.routes[0]) throw "Route nicht gefunden";
-  return {
-    km_oneway: data.routes[0].distance / 1000,
-    min_oneway: data.routes[0].duration / 60
-  };
-}
+/* =========================
+   UI
+========================= */
+document.getElementById("calcBtn").onclick=async()=>{
+  const dest=document.getElementById("addr").value.trim();
+  const out=document.getElementById("out");
+  out.style.display="block";
+  out.innerHTML="Berechne…";
 
-document.getElementById("calcBtn").addEventListener("click", async () => {
-  const dest = document.getElementById("addr").value.trim();
-  const out = document.getElementById("out");
+  try{
+    const a=await geocode(ORIGIN), b=await geocode(dest), r=await route(a,b);
+    const price=calcPrice(r.km);
+    const island=isIsland(dest);
 
-  out.style.display = "block";
-  out.innerHTML = "Berechne…";
-
-  try {
-    const start = await geocode(ORIGIN);
-    const ziel  = await geocode(dest);
-    const r = await route(start, ziel);
-
-    // WIE VORHER: NICHT verdoppeln, nur einfache Strecke als Basis
-    const grundpreis = r.km_oneway * KM_PREIS;
-    const endpreis = Math.round(grundpreis * (1 + AUFSCHLAG));
-
-    const island = isIsland(dest);
-
-    out.innerHTML = `
-      <h3>${endpreis} € Anfahrtspauschale</h3>
-
-      <p>
-        Entfernung (Straße, einfach): ${r.km_oneway.toFixed(1)} km<br>
-        Fahrzeit (einfach): ca. ${Math.round(r.min_oneway)} Minuten
-      </p>
-
+    out.innerHTML=`
+      <h3>${price?price+" €":"Preis auf Anfrage"} Anfahrtspauschale</h3>
+      <p>Entfernung (Straße, einfach): ${r.km.toFixed(1)} km<br>
+      Fahrzeit: ca. ${Math.round(r.min)} Minuten</p>
       <p>${includedText}</p>
       <p style="font-style:italic;">${individualHint}</p>
       <p><small>${legalHint}</small></p>
-      ${island ? `<p><small>${islandHint}</small></p>` : ""}
-
+      ${island?`<p><small>${islandHint}</small></p>`:""}
       <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;">
         <a href="mailto:${CONTACT_EMAIL}"
            style="padding:12px 18px;border-radius:10px;background:#1f1f1f;color:#fff;text-decoration:none;">
@@ -93,8 +179,11 @@ document.getElementById("calcBtn").addEventListener("click", async () => {
         </a>
       </div>
     `;
-  } catch (e) {
-    out.innerHTML = "Adresse konnte nicht berechnet werden.";
+  }catch(e){
+    out.innerHTML="Adresse konnte nicht berechnet werden.";
   }
-});
+};
 </script>
+
+</body>
+</html>
