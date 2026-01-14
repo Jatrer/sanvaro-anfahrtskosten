@@ -1,18 +1,83 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Anfahrtskosten berechnen | Sanvaro</title>
+</head>
+
+<body style="margin:0;font-family:Arial,Helvetica,sans-serif;background:#f2f2f2;color:#222;">
+
+<!-- HEADER -->
+<div style="background:#1f1f1f;color:#fff;">
+  <div style="max-width:1100px;margin:0 auto;padding:18px 16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;">
+    <div>
+      <div style="font-size:20px;font-weight:700;letter-spacing:1px;">SANVARO GMBH</div>
+      <div style="font-size:13px;color:#ccc;">Weil Qualität kein Zufall ist</div>
+    </div>
+    <a href="https://www.sanvaro.de/" style="color:#fff;text-decoration:none;font-size:14px;">
+      Zurück zur Homepage
+    </a>
+  </div>
+</div>
+
+<!-- CONTENT -->
+<div style="max-width:1100px;margin:40px auto;padding:0 16px;">
+  <div style="background:#fff;border-radius:14px;padding:24px;box-shadow:0 4px 14px rgba(0,0,0,.08);">
+    <h1 style="margin-top:0;">Anfahrtskosten berechnen</h1>
+    <p style="color:#666;font-size:15px;">Berechnung nach Straßenroute ab <b>Firmensitz</b>.</p>
+
+    <label style="font-weight:600;">Ihre Adresse</label>
+    <input id="addr"
+      placeholder="Musterstraße 1, 12345 Musterstadt"
+      style="width:100%;padding:14px;border:1px solid #ccc;border-radius:10px;margin-top:6px;font-size:15px;">
+
+    <button id="calcBtn"
+      style="margin-top:14px;padding:14px 22px;border-radius:10px;border:0;background:#1f1f1f;color:#fff;font-size:15px;cursor:pointer;">
+      Anfahrtskosten berechnen
+    </button>
+
+    <div id="out" style="display:none;margin-top:20px;padding:18px;border-radius:12px;background:#f7f7f7;"></div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<div style="background:#1f1f1f;color:#ccc;margin-top:60px;">
+  <div style="max-width:1100px;margin:0 auto;padding:20px 16px;display:flex;flex-wrap:wrap;gap:14px;justify-content:space-between;align-items:center;font-size:13px;">
+    <div>© Sanvaro GmbH</div>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;">
+      <a href="https://www.sanvaro.de/" style="color:#ccc;text-decoration:none;">Homepage</a>
+      <a href="https://www.sanvaro.de/impressum/" style="color:#ccc;text-decoration:none;">Impressum</a>
+      <a href="https://www.sanvaro.de/datenschutzerklaerung/" style="color:#ccc;text-decoration:none;">Datenschutz</a>
+    </div>
+  </div>
+</div>
+
 <script>
+/* =========================
+   FESTE DATEN
+========================= */
 const ORIGIN = "Holzweg 15, 97656 Oberstreu, Deutschland";
+
 const CONTACT_EMAIL = "kontakt@sanvaro.de";
 const PHONE_SASCHA = "+4917624740989";
 const PHONE_JUSTIN = "+4917661907607";
 
+/* =========================
+   KOSTENPARAMETER
+========================= */
 const TEAM_STUNDENSATZ = 40 + 50; // 90 €/h
 const KM_PREIS = 0.68;            // €/km
 const AUFSCHLAG = 0.10;           // 10 %
 
+/* =========================
+   TEXTE
+========================= */
 const includedText =
 "Die Anfahrtspauschale beinhaltet die komplette Hin- und Rückfahrt, die Fahrtzeit des Teams als Arbeitszeit sowie sämtliche Fahrzeugkosten.";
 
 const individualHint =
-"Die dargestellte Anfahrtspauschale dient als transparente Orientierung. Für individuelle Projekte, besondere handwerkliche Leistungen oder längere Einsätze erstellen wir Ihnen selbstverständlich gerne ein passgenaues Angebot.";
+"Die Berechnung dient als transparente Orientierung. Für individuelle Projekte, besondere handwerkliche Leistungen oder längere Einsätze erstellen wir Ihnen selbstverständlich gerne ein passgenaues Angebot.";
 
 const legalHint =
 "Hinweis: Die Anfahrtspauschale gilt für die reguläre An- und Abfahrt. Bei außergewöhnlichen Umständen (z. B. Sperrungen, extreme Staus, Fähren/Insellage oder zusätzliche Anfahrten) können Zusatzkosten entstehen. Diese stimmen wir selbstverständlich vorab transparent mit Ihnen ab.";
@@ -20,6 +85,9 @@ const legalHint =
 const islandHint =
 "Hinweis: Bei Inselanreisen oder Fährverbindungen können zusätzliche Kosten anfallen. Diese stimmen wir vorab transparent mit Ihnen ab.";
 
+/* =========================
+   HELPER
+========================= */
 function roundUpQuarterHour(hours) {
   return Math.ceil(hours * 4) / 4;
 }
@@ -30,19 +98,20 @@ function isIsland(text){
     .some(k => t.includes(k));
 }
 
+/* =========================
+   ROUTING
+========================= */
 async function geocode(address){
-  const res = await fetch(
-    `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=de&q=${encodeURIComponent(address)}`
-  );
+  const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=de&q=${encodeURIComponent(address)}`;
+  const res = await fetch(url);
   const data = await res.json();
   if (!data[0]) throw new Error("Adresse nicht gefunden");
   return { lon: data[0].lon, lat: data[0].lat };
 }
 
 async function route(a, b){
-  const res = await fetch(
-    `https://router.project-osrm.org/route/v1/driving/${a.lon},${a.lat};${b.lon},${b.lat}?overview=false`
-  );
+  const url = `https://router.project-osrm.org/route/v1/driving/${a.lon},${a.lat};${b.lon},${b.lat}?overview=false`;
+  const res = await fetch(url);
   const data = await res.json();
   if (!data.routes || !data.routes[0]) throw new Error("Route nicht gefunden");
   return {
@@ -51,9 +120,13 @@ async function route(a, b){
   };
 }
 
-document.getElementById("calcBtn").onclick = async () => {
+/* =========================
+   UI
+========================= */
+document.getElementById("calcBtn").addEventListener("click", async () => {
   const dest = document.getElementById("addr").value.trim();
   const out = document.getElementById("out");
+
   out.style.display = "block";
   out.innerHTML = "Berechne…";
 
@@ -115,5 +188,8 @@ document.getElementById("calcBtn").onclick = async () => {
   } catch (e) {
     out.innerHTML = "Adresse konnte nicht berechnet werden.";
   }
-};
+});
 </script>
+
+</body>
+</html>
