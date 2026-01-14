@@ -1,60 +1,41 @@
 <script>
-/* =========================
-   FESTE DATEN
-========================= */
 const ORIGIN = "Holzweg 15, 97656 Oberstreu, Deutschland";
-
 const CONTACT_EMAIL = "kontakt@sanvaro.de";
 const PHONE_SASCHA = "+4917624740989";
 const PHONE_JUSTIN = "+4917661907607";
 
-/* =========================
-   KOSTENPARAMETER
-========================= */
-const HELFER_STUNDENSATZ = 40;
-const MEISTER_STUNDENSATZ = 50;
-const TEAM_STUNDENSATZ = HELFER_STUNDENSATZ + MEISTER_STUNDENSATZ; // 90 €/h
+const TEAM_STUNDENSATZ = 40 + 50; // 90 €/h
+const KM_PREIS = 0.68;            // €/km
+const AUFSCHLAG = 0.10;           // 10 %
 
-const KM_PREIS = 0.68;   // €/km
-const AUFSCHLAG = 0.10;  // 10 %
-
-/* =========================
-   TEXTE
-========================= */
 const includedText =
 "Die Anfahrtspauschale beinhaltet die komplette Hin- und Rückfahrt, die Fahrtzeit des Teams als Arbeitszeit sowie sämtliche Fahrzeugkosten.";
 
 const individualHint =
-"Die Berechnung dient als transparente Orientierung. Für besondere Projekte oder längere Einsätze erstellen wir Ihnen selbstverständlich gerne ein individuelles Angebot.";
+"Die dargestellte Anfahrtspauschale dient als transparente Orientierung. Für individuelle Projekte, besondere handwerkliche Leistungen oder längere Einsätze erstellen wir Ihnen selbstverständlich gerne ein passgenaues Angebot.";
 
 const legalHint =
-"Hinweis: Die Kosten basieren auf der regulären An- und Abfahrt. Bei außergewöhnlichen Umständen (z. B. Sperrungen, extreme Staus, Fähren oder Zusatzfahrten) können Mehrkosten entstehen. Diese stimmen wir selbstverständlich vorab transparent mit Ihnen ab.";
+"Hinweis: Die Anfahrtspauschale gilt für die reguläre An- und Abfahrt. Bei außergewöhnlichen Umständen (z. B. Sperrungen, extreme Staus, Fähren/Insellage oder zusätzliche Anfahrten) können Zusatzkosten entstehen. Diese stimmen wir selbstverständlich vorab transparent mit Ihnen ab.";
 
 const islandHint =
 "Hinweis: Bei Inselanreisen oder Fährverbindungen können zusätzliche Kosten anfallen. Diese stimmen wir vorab transparent mit Ihnen ab.";
 
-/* =========================
-   HILFSFUNKTIONEN
-========================= */
 function roundUpQuarterHour(hours) {
   return Math.ceil(hours * 4) / 4;
 }
 
 function isIsland(text){
-  const t = text.toLowerCase();
+  const t = (text || "").toLowerCase();
   return ["insel","sylt","spiekeroog","borkum","norderney","fehmarn","helgoland"]
     .some(k => t.includes(k));
 }
 
-/* =========================
-   ROUTING (OSM)
-========================= */
 async function geocode(address){
   const res = await fetch(
-    `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`
+    `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=de&q=${encodeURIComponent(address)}`
   );
   const data = await res.json();
-  if (!data[0]) throw "Adresse nicht gefunden";
+  if (!data[0]) throw new Error("Adresse nicht gefunden");
   return { lon: data[0].lon, lat: data[0].lat };
 }
 
@@ -63,19 +44,16 @@ async function route(a, b){
     `https://router.project-osrm.org/route/v1/driving/${a.lon},${a.lat};${b.lon},${b.lat}?overview=false`
   );
   const data = await res.json();
+  if (!data.routes || !data.routes[0]) throw new Error("Route nicht gefunden");
   return {
-    km: data.routes[0].distance / 1000,      // einfache Strecke
-    hours: data.routes[0].duration / 3600    // einfache Strecke
+    km_oneway: data.routes[0].distance / 1000,
+    min_oneway: data.routes[0].duration / 60
   };
 }
 
-/* =========================
-   BERECHNUNG & AUSGABE
-========================= */
 document.getElementById("calcBtn").onclick = async () => {
   const dest = document.getElementById("addr").value.trim();
   const out = document.getElementById("out");
-
   out.style.display = "block";
   out.innerHTML = "Berechne…";
 
@@ -85,32 +63,33 @@ document.getElementById("calcBtn").onclick = async () => {
     const r = await route(start, ziel);
 
     // Hin- & Rückfahrt
-    const gesamtKm = r.km * 2;
-    const gesamtZeit = roundUpQuarterHour(r.hours * 2);
+    const km_total = r.km_oneway * 2;
+    const hours_total_raw = (r.min_oneway * 2) / 60;
+    const hours_total = roundUpQuarterHour(hours_total_raw);
 
-    const kostenKm = gesamtKm * KM_PREIS;
-    const kostenZeit = gesamtZeit * TEAM_STUNDENSATZ;
+    const cost_km = km_total * KM_PREIS;
+    const cost_time = hours_total * TEAM_STUNDENSATZ;
 
-    const zwischensumme = kostenKm + kostenZeit;
-    const zuschlag = zwischensumme * AUFSCHLAG;
-    const endpreis = Math.round(zwischensumme + zuschlag);
+    const subtotal = cost_km + cost_time;
+    const fee = subtotal * AUFSCHLAG;
+    const total = Math.round(subtotal + fee);
 
     const island = isIsland(dest);
 
     out.innerHTML = `
-      <h3>${endpreis} € Anfahrtspauschale</h3>
+      <h3>${total} € Anfahrtspauschale</h3>
 
       <p>
-        Entfernung gesamt: ${gesamtKm.toFixed(1)} km<br>
-        Fahrzeit gesamt: ca. ${gesamtZeit.toFixed(2)} Stunden
+        Entfernung (Straße, einfach): ${r.km_oneway.toFixed(1)} km<br>
+        Fahrzeit (einfach): ca. ${Math.round(r.min_oneway)} Minuten
       </p>
 
-      <p><b>Berechnung:</b><br>
-        ${gesamtKm.toFixed(1)} km × ${KM_PREIS.toFixed(2)} € = ${kostenKm.toFixed(2)} €<br>
-        ${gesamtZeit.toFixed(2)} h × ${TEAM_STUNDENSATZ} € = ${kostenZeit.toFixed(2)} €<br>
-        Zwischensumme: ${zwischensumme.toFixed(2)} €<br>
-        + 10 % Pauschale: ${zuschlag.toFixed(2)} €<br>
-        <b>Endpreis: ${endpreis} €</b>
+      <p style="margin-top:10px;"><b>Berechnung (Hin- & Rückfahrt):</b><br>
+        Gesamtkilometer: ${km_total.toFixed(1)} km × ${KM_PREIS.toFixed(2)} € = ${cost_km.toFixed(2)} €<br>
+        Gesamtfahrzeit: ${hours_total.toFixed(2)} h × ${TEAM_STUNDENSATZ} € = ${cost_time.toFixed(2)} €<br>
+        Zwischensumme: ${subtotal.toFixed(2)} €<br>
+        + 10 % Pauschale: ${fee.toFixed(2)} €<br>
+        <b>Endpreis: ${total} €</b>
       </p>
 
       <p>${includedText}</p>
