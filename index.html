@@ -79,7 +79,13 @@ const PHONE_SASCHA = "+4917624740989";
 const PHONE_JUSTIN = "+4917661907607";
 
 /* =========================
-   PREISLOGIK
+   NEU: KM-KOSTEN + 10% (intern, nicht anzeigen)
+========================= */
+const KM_RATE = 0.67;     // 67 Cent pro km
+const SURCHARGE = 0.10;   // 10% Aufschlag
+
+/* =========================
+   PREISLOGIK (unverändert)
 ========================= */
 const ANCHORS = [
   { km: 10, price: 29 },
@@ -153,11 +159,19 @@ document.getElementById("calcBtn").onclick=async()=>{
 
   try{
     const a=await geocode(ORIGIN), b=await geocode(dest), r=await route(a,b);
-    const price=calcPrice(r.km);
+
+    // Basis: bisherige Zonen-Logik beibehalten
+    const base = calcPrice(r.km);
+
+    // Neu: km-Kosten + 10% intern drauf (ohne Anzeige)
+    const finalPrice = base == null
+      ? null
+      : Math.round( (base + (r.km * KM_RATE)) * (1 + SURCHARGE) );
+
     const island=isIsland(dest);
 
     out.innerHTML=`
-      <h3>${price?price+" €":"Preis auf Anfrage"} Anfahrtspauschale</h3>
+      <h3>${finalPrice?finalPrice+" €":"Preis auf Anfrage"} Anfahrtspauschale</h3>
       <p>Entfernung (Straße, einfach): ${r.km.toFixed(1)} km<br>
       Fahrzeit: ca. ${Math.round(r.min)} Minuten</p>
       <p>${includedText}</p>
