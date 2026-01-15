@@ -71,15 +71,14 @@ const PHONE_JUSTIN = "+4917661907607";
 /* =========================
    STEUERN / MWST
 ========================= */
-const VAT_RATE = 0.19; // gesetzlicher Regelsteuersatz (DE) i. d. R. 19%
+const VAT_RATE = 0.19; // Regelsteuersatz (DE) i. d. R. 19%
 
 function moneyEUR(n){
-  // Ganze Euro, deutsch formatiert
   return `${Math.round(n).toLocaleString("de-DE")} €`;
 }
 
 /* =========================
-   PREISMODELL (final)
+   PREISMODELL (dein bisheriges)
 ========================= */
 const BASE_FEE = 50;
 const INCLUDED_KM_ONEWAY = 20;
@@ -89,6 +88,32 @@ const TRAVEL_FACTOR = 0.65;
 const MIN_FEE = 99;
 const MAX_ONEWAY_KM_FOR_FIXED = 300;
 const ROUND_STEP_EUR = 5;
+
+/* =========================
+   NEU: DISTANZ-ABFLACHUNG (Wow-Effekt)
+   - kurze Strecken: leicht höher (bis ca. +16%)
+   - lange Strecken: günstiger (bis ca. -20%)
+   Tunable Parameter: HIGH, LOW, K0, A
+========================= */
+const COMP_HIGH = 1.164;  // Faktor bei sehr kurzen Gesamtdistanzen
+const COMP_LOW  = 0.80;   // Untergrenze Faktor bei sehr langen Gesamtdistanzen
+const COMP_K0   = 162;    // "Knickpunkt" in km (Gesamtkilometer)
+const COMP_A    = 2.65;   // Steilheit der Abflachung
+
+function competitiveFactor(km_total){
+  // glatte Abflachung: low + (high-low)/(1+(km/k0)^a)
+  const f = COMP_LOW + (COMP_HIGH - COMP_LOW) / (1 + Math.pow(km_total / COMP_K0, COMP_A));
+  // Sicherheits-Clamp (optional)
+  return Math.min(1.18, Math.max(0.78, f));
+}
+
+function roundUpToQuarterHour(hours){
+  return Math.ceil(hours * 4) / 4;
+}
+
+function roundUpToStep(amount, step){
+  return Math.ceil(amount / step) * step;
+}
 
 /* =========================
    TEXTE
@@ -107,124 +132,4 @@ const islandHint =
 
 function isIsland(text){
   const t = (text || "").toLowerCase();
-  return ["insel","sylt","spiekeroog","borkum","norderney","fehmarn","helgoland"].some(k => t.includes(k));
-}
-
-function roundUpToQuarterHour(hours){
-  return Math.ceil(hours * 4) / 4;
-}
-
-function roundUpToStep(amount, step){
-  return Math.ceil(amount / step) * step;
-}
-
-/* =========================
-   BERECHNUNG
-   Annahme: calcPrice liefert NETTO (ohne MwSt.),
-   Ausgabe zeigt BRUTTO inkl. MwSt. + Netto/Steuer transparent.
-========================= */
-function calcPrice(km_oneway, min_oneway){
-  if (km_oneway > MAX_ONEWAY_KM_FOR_FIXED) return null;
-
-  const hours_total = roundUpToQuarterHour((min_oneway * 2) / 60);
-  const travel_cost = hours_total * TEAM_HOURLY * TRAVEL_FACTOR;
-
-  const extra_oneway = Math.max(0, km_oneway - INCLUDED_KM_ONEWAY);
-  const km_cost = extra_oneway * 2 * EXTRA_KM_RATE;
-
-  let total = BASE_FEE + travel_cost + km_cost;
-  total = Math.max(total, MIN_FEE);
-  total = roundUpToStep(total, ROUND_STEP_EUR);
-
-  return Math.round(total); // Netto in EUR (ganzzahlig)
-}
-
-function calcGrossFromNet(net){
-  const gross = Math.round(net * (1 + VAT_RATE));
-  const vat = gross - net;
-  return { net, vat, gross };
-}
-
-/* =========================
-   ROUTING
-========================= */
-async function geocode(addr){
-  const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=de&q=${encodeURIComponent(addr)}`;
-  const res = await fetch(url);
-  const data = await res.json();
-  if (!data[0]) throw new Error("Adresse nicht gefunden");
-  return { lon: data[0].lon, lat: data[0].lat };
-}
-
-async function route(a,b){
-  const url = `https://router.project-osrm.org/route/v1/driving/${a.lon},${a.lat};${b.lon},${b.lat}?overview=false`;
-  const res = await fetch(url);
-  const data = await res.json();
-  if(!data.routes || !data.routes[0]) throw new Error("Route nicht gefunden");
-  return {
-    km_oneway: data.routes[0].distance / 1000,
-    min_oneway: data.routes[0].duration / 60
-  };
-}
-
-/* =========================
-   UI
-========================= */
-document.getElementById("calcBtn").addEventListener("click", async () => {
-  const dest = document.getElementById("addr").value.trim();
-  const out = document.getElementById("out");
-  out.style.display = "block";
-  out.innerHTML = "Berechne…";
-
-  try{
-    const a = await geocode(ORIGIN);
-    const b = await geocode(dest);
-    const r = await route(a,b);
-
-    const priceNet = calcPrice(r.km_oneway, r.min_oneway);
-    const island = isIsland(dest);
-
-    const km_oneway_txt = r.km_oneway.toFixed(1);
-    const km_total_txt  = (r.km_oneway * 2).toFixed(1);
-
-    const min_oneway_round = Math.round(r.min_oneway);
-    const min_total_round  = Math.round(r.min_oneway * 2);
-
-    let headline = `Preis auf Anfrage Anfahrtspauschale`;
-    let priceBlock = "";
-
-    if (priceNet !== null){
-      const p = calcGrossFromNet(priceNet);
-      headline = `${moneyEUR(p.gross)} Anfahrtspauschale (inkl. ${Math.round(VAT_RATE*100)}% MwSt.)`;
-      priceBlock = `
-        <p style="margin-top:6px;color:#555;">
-          Netto: ${moneyEUR(p.net)} &nbsp;|&nbsp; MwSt.: ${moneyEUR(p.vat)}
-        </p>
-      `;
-    }
-
-    out.innerHTML = `
-      <h3>${headline}</h3>
-      ${priceBlock}
-      <p>
-        Entfernung (Hinfahrt): ${km_oneway_txt} km &nbsp;|&nbsp; Gesamtkilometer: ${km_total_txt} km<br>
-        Fahrzeit (Hinfahrt): ca. ${min_oneway_round} Minuten &nbsp;|&nbsp; Gesamtzeit: ca. ${min_total_round} Minuten
-      </p>
-      <p>${includedText}</p>
-      <p style="font-style:italic;">${individualHint}</p>
-      <p><small>${legalHint}</small></p>
-      ${island ? `<p><small>${islandHint}</small></p>` : ""}
-      <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;">
-        <a href="mailto:${CONTACT_EMAIL}" style="padding:12px 18px;border-radius:10px;background:#1f1f1f;color:#fff;text-decoration:none;">Jetzt anfragen</a>
-        <a href="tel:${PHONE_SASCHA}" style="padding:12px 18px;border-radius:10px;border:1px solid #ccc;text-decoration:none;">Sascha anrufen</a>
-        <a href="tel:${PHONE_JUSTIN}" style="padding:12px 18px;border-radius:10px;border:1px solid #ccc;text-decoration:none;">Justin anrufen</a>
-      </div>
-    `;
-  }catch(e){
-    out.innerHTML = "Adresse konnte nicht berechnet werden.";
-  }
-});
-</script>
-
-</body>
-</html>
+  return ["insel","sylt","spiekeroog","borkum","norderney","fehmarn","helgoland"].some(k => t.
