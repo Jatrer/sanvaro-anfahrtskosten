@@ -69,32 +69,16 @@ const PHONE_SASCHA = "+4917624740989";
 const PHONE_JUSTIN = "+4917661907607";
 
 /* =========================
-   NEUES PREISMODELL (wettbewerbsfähig)
-   -> Pauschale + Inklusiv-KM + KM-Preis + rabattierte Fahrzeit + Mindestpreis + Rundung
+   PREISMODELL (final)
 ========================= */
-// Grundpauschale pro Auftrag (Organisation, Fahrzeugvorhaltung etc.)
-const BASE_FEE = 50; // €
-
-// Inklusiv-Zone (einfach) – bis hier keine zusätzlichen km-Kosten
-const INCLUDED_KM_ONEWAY = 20; // km (einfach)
-
-// Zusatz-km-Preis (nur für km über INCLUDED_KM_ONEWAY; berechnet auf Hin+Rück)
-const EXTRA_KM_RATE = 0.50; // €/km
-
-// Team-Stundensatz intern (Meister + Helfer zusammen)
-const TEAM_HOURLY = 100; // €/h (intern kalkulatorisch)
-
-// Rabattfaktor für Fahrzeit-Berechnung (wettbewerbsfähig bei langen Strecken)
-const TRAVEL_FACTOR = 0.65; // 65% des Team-Stundensatzes
-
-// Mindestpauschale (damit kurze Fahrten nicht zu billig werden)
-const MIN_FEE = 99; // €
-
-// Ab hier: Preis auf Anfrage (z.B. sehr weit / Sonderlogistik)
+const BASE_FEE = 50;
+const INCLUDED_KM_ONEWAY = 20;
+const EXTRA_KM_RATE = 0.50;
+const TEAM_HOURLY = 100;
+const TRAVEL_FACTOR = 0.65;
+const MIN_FEE = 99;
 const MAX_ONEWAY_KM_FOR_FIXED = 300;
-
-// Rundung auf „saubere“ Pauschalen
-const ROUND_STEP_EUR = 5; // auf nächste 5€ aufrunden
+const ROUND_STEP_EUR = 5;
 
 /* =========================
    TEXTE
@@ -117,7 +101,7 @@ function isIsland(text){
 }
 
 function roundUpToQuarterHour(hours){
-  return Math.ceil(hours * 4) / 4; // 15-Minuten-Schritte
+  return Math.ceil(hours * 4) / 4;
 }
 
 function roundUpToStep(amount, step){
@@ -125,32 +109,19 @@ function roundUpToStep(amount, step){
 }
 
 /* =========================
-   BERECHNUNG (NEU)
-   Input: einfache_entfernung (km) und einfache_fahrzeit (min)
+   BERECHNUNG
 ========================= */
 function calcPrice(km_oneway, min_oneway){
   if (km_oneway > MAX_ONEWAY_KM_FOR_FIXED) return null;
 
-  const km_total = km_oneway * 2;
-
-  // Fahrzeit (Hin+Rück) in Stunden; in 15-Minuten-Schritte aufrunden
   const hours_total = roundUpToQuarterHour((min_oneway * 2) / 60);
-
-  // Fahrzeitkosten mit Wettbewerbsfaktor
   const travel_cost = hours_total * TEAM_HOURLY * TRAVEL_FACTOR;
 
-  // Zusatz-km nur oberhalb der Inklusiv-Zone (einfach)
   const extra_oneway = Math.max(0, km_oneway - INCLUDED_KM_ONEWAY);
-  const extra_km_total = extra_oneway * 2;
-  const km_cost = extra_km_total * EXTRA_KM_RATE;
+  const km_cost = extra_oneway * 2 * EXTRA_KM_RATE;
 
-  // Summe
   let total = BASE_FEE + travel_cost + km_cost;
-
-  // Mindestpreis
   total = Math.max(total, MIN_FEE);
-
-  // Rundung
   total = roundUpToStep(total, ROUND_STEP_EUR);
 
   return Math.round(total);
@@ -195,32 +166,14 @@ document.getElementById("calcBtn").addEventListener("click", async () => {
     const price = calcPrice(r.km_oneway, r.min_oneway);
     const island = isIsland(dest);
 
-    const km_total = r.km_oneway * 2;
-    const min_total = Math.round(r.min_oneway * 2);
-
-    // Transparenz: Inklusiv + extra km
-    const extra_oneway = Math.max(0, r.km_oneway - INCLUDED_KM_ONEWAY);
-    const extra_total = extra_oneway * 2;
-
     out.innerHTML = `
-      <h3>${price !== null ? (price + " €") : "Preis auf Anfrage"} Anfahrtspauschale</h3>
+      <h3>${price !== null ? price + " €" : "Preis auf Anfrage"} Anfahrtspauschale</h3>
       <p>
         Entfernung (Hinfahrt): ${r.km_oneway.toFixed(1)} km<br>
-        Entfernung (Hin und zurück): ${km_total.toFixed(1)} km<br>
+        Entfernung (Hin und zurück): ${(r.km_oneway * 2).toFixed(1)} km<br>
         Fahrzeit (Hinfahrt): ca. ${Math.round(r.min_oneway)} Minuten<br>
-        Fahrzeit (Hin und zurück): ca. ${min_total} Minuten
+        Fahrzeit (Hin und zurück): ca. ${Math.round(r.min_oneway * 2)} Minuten
       </p>
-
-      <p><small>
-        Modell: Grundpauschale ${BASE_FEE} € + Fahrzeit (Team) + Zusatz-km ab ${INCLUDED_KM_ONEWAY} km.
-        ${
-          extra_total > 0
-            ? `Zusatz-km (Hin & Rück): ${extra_total.toFixed(1)} km`
-            : `Inklusiv-Zone greift (keine Zusatz-km).`
-        }
-        Mindestpauschale ${MIN_FEE} €, Rundung auf ${ROUND_STEP_EUR} €.
-      </small></p>
-
       <p>${includedText}</p>
       <p style="font-style:italic;">${individualHint}</p>
       <p><small>${legalHint}</small></p>
