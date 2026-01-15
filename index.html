@@ -54,7 +54,7 @@
     <div style="display:flex;gap:16px;flex-wrap:wrap;">
       <a href="https://www.sanvaro.de/" style="color:#ccc;text-decoration:none;">Homepage</a>
       <a href="https://www.sanvaro.de/impressum/" style="color:#ccc;text-decoration:none;">Impressum</a>
-      <a href="https://www.sanvaro.de/datenschutzerklaerung/" style="color:#ccc;text-decoration:none;">Datenschutz</a>
+      <a href="https://www.sanvaro.de/impressum/" style="color:#ccc;text-decoration:none;">Datenschutz</a>
     </div>
   </div>
 </div>
@@ -71,14 +71,14 @@ const PHONE_JUSTIN = "+4917661907607";
 /* =========================
    STEUERN / MWST
 ========================= */
-const VAT_RATE = 0.19; // Regelsteuersatz (DE) i. d. R. 19%
+const VAT_RATE = 0.19; // Regelsteuersatz
 
 function moneyEUR(n){
   return `${Math.round(n).toLocaleString("de-DE")} €`;
 }
 
 /* =========================
-   PREISMODELL (dein bisheriges)
+   PREISMODELL (Basis)
 ========================= */
 const BASE_FEE = 50;
 const INCLUDED_KM_ONEWAY = 20;
@@ -90,27 +90,23 @@ const MAX_ONEWAY_KM_FOR_FIXED = 300;
 const ROUND_STEP_EUR = 5;
 
 /* =========================
-   NEU: DISTANZ-ABFLACHUNG (Wow-Effekt)
-   - kurze Strecken: leicht höher (bis ca. +16%)
-   - lange Strecken: günstiger (bis ca. -20%)
-   Tunable Parameter: HIGH, LOW, K0, A
+   NEU: Konkurrenz-Abflachung
+   - kurze Strecken: leicht höher
+   - lange Strecken: günstiger
 ========================= */
 const COMP_HIGH = 1.164;  // Faktor bei sehr kurzen Gesamtdistanzen
 const COMP_LOW  = 0.80;   // Untergrenze Faktor bei sehr langen Gesamtdistanzen
-const COMP_K0   = 162;    // "Knickpunkt" in km (Gesamtkilometer)
-const COMP_A    = 2.65;   // Steilheit der Abflachung
+const COMP_K0   = 162;    // Knickpunkt (Gesamtkilometer)
+const COMP_A    = 2.65;   // Steilheit
 
 function competitiveFactor(km_total){
-  // glatte Abflachung: low + (high-low)/(1+(km/k0)^a)
   const f = COMP_LOW + (COMP_HIGH - COMP_LOW) / (1 + Math.pow(km_total / COMP_K0, COMP_A));
-  // Sicherheits-Clamp (optional)
   return Math.min(1.18, Math.max(0.78, f));
 }
 
 function roundUpToQuarterHour(hours){
   return Math.ceil(hours * 4) / 4;
 }
-
 function roundUpToStep(amount, step){
   return Math.ceil(amount / step) * step;
 }
@@ -132,4 +128,151 @@ const islandHint =
 
 function isIsland(text){
   const t = (text || "").toLowerCase();
-  return ["insel","sylt","spiekeroog","borkum","norderney","fehmarn","helgoland"].some(k => t.
+  return ["insel","sylt","spiekeroog","borkum","norderney","fehmarn","helgoland"].some(k => t.includes(k));
+}
+
+/* =========================
+   BERECHNUNG
+========================= */
+function calcPriceNetBase(km_oneway, min_oneway){
+  if (km_oneway > MAX_ONEWAY_KM_FOR_FIXED) return null;
+
+  const hours_total = roundUpToQuarterHour((min_oneway * 2) / 60);
+  const travel_cost = hours_total * TEAM_HOURLY * TRAVEL_FACTOR;
+
+  const extra_oneway = Math.max(0, km_oneway - INCLUDED_KM_ONEWAY);
+  const km_cost = extra_oneway * 2 * EXTRA_KM_RATE;
+
+  let total = BASE_FEE + travel_cost + km_cost;
+  total = Math.max(total, MIN_FEE);
+  total = roundUpToStep(total, ROUND_STEP_EUR);
+
+  return Math.round(total); // Netto-Basis
+}
+
+function applyCompetitiveNet(net, km_total){
+  const f = competitiveFactor(km_total);
+  const adjusted = net * f;
+  return Math.round(roundUpToStep(adjusted, ROUND_STEP_EUR));
+}
+
+function calcGrossFromNet(net){
+  const gross = Math.round(net * (1 + VAT_RATE));
+  const vat = gross - net;
+  return { net, vat, gross };
+}
+
+/* =========================
+   STABILE FETCHES (Timeout)
+========================= */
+function fetchWithTimeout(url, ms = 12000){
+  const controller = new AbortController();
+  const t = setTimeout(() => controller.abort(), ms);
+  return fetch(url, {
+    signal: controller.signal,
+    headers: { "Accept": "application/json" }
+  }).finally(() => clearTimeout(t));
+}
+
+/* =========================
+   ROUTING
+========================= */
+async function geocode(addr){
+  const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=de&q=${encodeURIComponent(addr)}`;
+  const res = await fetchWithTimeout(url, 12000);
+  if(!res.ok) throw new Error("Geocoding fehlgeschlagen");
+  const data = await res.json();
+  if (!data[0]) throw new Error("Adresse nicht gefunden");
+  return { lon: data[0].lon, lat: data[0].lat };
+}
+
+async function route(a,b){
+  const url = `https://router.project-osrm.org/route/v1/driving/${a.lon},${a.lat};${b.lon},${b.lat}?overview=false`;
+  const res = await fetchWithTimeout(url, 12000);
+  if(!res.ok) throw new Error("Routing fehlgeschlagen");
+  const data = await res.json();
+  if(!data.routes || !data.routes[0]) throw new Error("Route nicht gefunden");
+  return {
+    km_oneway: data.routes[0].distance / 1000,
+    min_oneway: data.routes[0].duration / 60
+  };
+}
+
+/* =========================
+   UI
+========================= */
+document.getElementById("calcBtn").addEventListener("click", async () => {
+  const btn = document.getElementById("calcBtn");
+  const dest = document.getElementById("addr").value.trim();
+  const out = document.getElementById("out");
+
+  out.style.display = "block";
+  out.innerHTML = "Berechne…";
+
+  // Button sperren während Berechnung
+  btn.disabled = true;
+  btn.style.opacity = "0.7";
+  btn.style.cursor = "not-allowed";
+
+  try{
+    if(!dest) throw new Error("Bitte Adresse eingeben");
+
+    const a = await geocode(ORIGIN);
+    const b = await geocode(dest);
+    const r = await route(a,b);
+
+    const km_total = r.km_oneway * 2;
+
+    const netBase = calcPriceNetBase(r.km_oneway, r.min_oneway);
+    const island = isIsland(dest);
+
+    let headline = `Preis auf Anfrage Anfahrtspauschale`;
+    let priceBlock = "";
+
+    if (netBase !== null){
+      const net = applyCompetitiveNet(netBase, km_total);
+      const p = calcGrossFromNet(net);
+
+      headline = `${moneyEUR(p.gross)} Anfahrtspauschale (inkl. ${Math.round(VAT_RATE*100)}% MwSt.)`;
+      priceBlock = `
+        <p style="margin-top:6px;color:#555;">
+          Netto: ${moneyEUR(p.net)} &nbsp;|&nbsp; MwSt.: ${moneyEUR(p.vat)}
+        </p>
+      `;
+    }
+
+    out.innerHTML = `
+      <h3>${headline}</h3>
+      ${priceBlock}
+      <p>
+        Entfernung (Hinfahrt): ${r.km_oneway.toFixed(1)} km &nbsp;|&nbsp; Gesamtkilometer: ${km_total.toFixed(1)} km<br>
+        Fahrzeit (Hinfahrt): ca. ${Math.round(r.min_oneway)} Minuten &nbsp;|&nbsp; Gesamtzeit: ca. ${Math.round(r.min_oneway * 2)} Minuten
+      </p>
+      <p>${includedText}</p>
+      <p style="font-style:italic;">${individualHint}</p>
+      <p><small>${legalHint}</small></p>
+      ${island ? `<p><small>${islandHint}</small></p>` : ""}
+      <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;">
+        <a href="mailto:${CONTACT_EMAIL}" style="padding:12px 18px;border-radius:10px;background:#1f1f1f;color:#fff;text-decoration:none;">Jetzt anfragen</a>
+        <a href="tel:${PHONE_SASCHA}" style="padding:12px 18px;border-radius:10px;border:1px solid #ccc;text-decoration:none;">Sascha anrufen</a>
+        <a href="tel:${PHONE_JUSTIN}" style="padding:12px 18px;border-radius:10px;border:1px solid #ccc;text-decoration:none;">Justin anrufen</a>
+      </div>
+    `;
+  }catch(e){
+    console.error(e);
+    const msg =
+      (e && e.name === "AbortError") ? "Die Routenberechnung hat zu lange gedauert. Bitte erneut versuchen." :
+      (e && e.message) ? e.message :
+      "Adresse konnte nicht berechnet werden. Bitte erneut versuchen.";
+    out.innerHTML = msg;
+  }finally{
+    // Button IMMER wieder aktivieren
+    btn.disabled = false;
+    btn.style.opacity = "1";
+    btn.style.cursor = "pointer";
+  }
+});
+</script>
+
+</body>
+</html>
