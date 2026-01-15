@@ -12,20 +12,17 @@
 <div style="background:#1f1f1f;color:#fff;">
   <div style="max-width:1100px;margin:0 auto;padding:18px 16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;">
     <div>
-      <div style="font-size:20px;font-weight:700;letter-spacing:1px;">SANVARO GMBH</div>
+      <div style="font-size:20px;font-weight:700;">SANVARO GMBH</div>
       <div style="font-size:13px;color:#ccc;">Weil Qualität kein Zufall ist</div>
     </div>
-    <a href="https://www.sanvaro.de/" style="color:#fff;text-decoration:none;font-size:14px;">
-      Zurück zur Homepage
-    </a>
+    <a href="https://www.sanvaro.de/" style="color:#fff;text-decoration:none;font-size:14px;">Zurück zur Homepage</a>
   </div>
 </div>
 
 <!-- CONTENT -->
 <div style="max-width:1100px;margin:40px auto;padding:0 16px;">
   <div style="background:#fff;border-radius:14px;padding:24px;box-shadow:0 4px 14px rgba(0,0,0,.08);">
-    <h1 style="margin-top:0;">Anfahrtskosten berechnen</h1>
-    <p style="color:#666;font-size:15px;">Berechnung nach Straßenroute ab <b>Firmensitz</b>.</p>
+    <h1>Anfahrtskosten berechnen</h1>
 
     <label style="font-weight:600;">Ihre Adresse</label>
     <input id="addr"
@@ -33,116 +30,125 @@
       style="width:100%;padding:14px;border:1px solid #ccc;border-radius:10px;margin-top:6px;font-size:15px;">
 
     <button id="calcBtn"
+      type="button"
       style="margin-top:14px;padding:14px 22px;border-radius:10px;border:0;background:#1f1f1f;color:#fff;font-size:15px;cursor:pointer;">
       Anfahrtskosten berechnen
     </button>
 
     <div id="out" style="display:none;margin-top:20px;padding:18px;border-radius:12px;background:#f7f7f7;"></div>
-
-    <noscript>
-      <div style="margin-top:14px;padding:12px;border-radius:10px;background:#fff2f2;border:1px solid #ffcccc;">
-        Bitte JavaScript im Browser aktivieren, damit der Rechner funktioniert.
-      </div>
-    </noscript>
   </div>
 </div>
 
 <!-- FOOTER -->
 <div style="background:#1f1f1f;color:#ccc;margin-top:60px;">
-  <div style="max-width:1100px;margin:0 auto;padding:20px 16px;display:flex;flex-wrap:wrap;gap:14px;justify-content:space-between;align-items:center;font-size:13px;">
+  <div style="max-width:1100px;margin:0 auto;padding:20px 16px;display:flex;justify-content:space-between;font-size:13px;">
     <div>© Sanvaro GmbH</div>
-    <div style="display:flex;gap:16px;flex-wrap:wrap;">
-      <a href="https://www.sanvaro.de/" style="color:#ccc;text-decoration:none;">Homepage</a>
-      <a href="https://www.sanvaro.de/impressum/" style="color:#ccc;text-decoration:none;">Impressum</a>
-      <a href="https://www.sanvaro.de/datenschutzerklaerung/" style="color:#ccc;text-decoration:none;">Datenschutz</a>
+    <div>
+      <a href="https://www.sanvaro.de/impressum/" style="color:#ccc;margin-right:16px;">Impressum</a>
+      <a href="https://www.sanvaro.de/datenschutzerklaerung/" style="color:#ccc;">Datenschutz</a>
     </div>
   </div>
 </div>
 
 <script>
 /* =========================
-   FESTE DATEN
+   KONFIG
 ========================= */
 const ORIGIN = "Holzweg 15, 97656 Oberstreu, Deutschland";
-const CONTACT_EMAIL = "kontakt@sanvaro.de";
-const PHONE_SASCHA = "+4917624740989";
-const PHONE_JUSTIN = "+4917661907607";
-
-/* =========================
-   STEUERN / MWST
-========================= */
 const VAT_RATE = 0.19;
 
-function moneyEUR(n){
-  return `${Math.round(n).toLocaleString("de-DE")} €`;
+/* =========================
+   HILFSFUNKTIONEN
+========================= */
+function money(n){ return Math.round(n).toLocaleString("de-DE") + " €"; }
+
+function fetchWithTimeout(url, ms = 12000){
+  const c = new AbortController();
+  const t = setTimeout(() => c.abort(), ms);
+  return fetch(url, { signal: c.signal }).finally(() => clearTimeout(t));
 }
 
 /* =========================
-   PREISMODELL (Basis)
+   ROUTING
 ========================= */
-const BASE_FEE = 50;
-const INCLUDED_KM_ONEWAY = 20;
-const EXTRA_KM_RATE = 0.50;
-const TEAM_HOURLY = 100;
-const TRAVEL_FACTOR = 0.65;
-const MIN_FEE = 99;
-const MAX_ONEWAY_KM_FOR_FIXED = 300;
-const ROUND_STEP_EUR = 5;
-
-/* =========================
-   NEU: Konkurrenz-Abflachung
-========================= */
-const COMP_HIGH = 1.164;
-const COMP_LOW  = 0.80;
-const COMP_K0   = 162;
-const COMP_A    = 2.65;
-
-function competitiveFactor(km_total){
-  const f = COMP_LOW + (COMP_HIGH - COMP_LOW) / (1 + Math.pow(km_total / COMP_K0, COMP_A));
-  return Math.min(1.18, Math.max(0.78, f));
+async function geocode(addr){
+  const res = await fetchWithTimeout(
+    `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(addr)}`
+  );
+  const d = await res.json();
+  if(!d[0]) throw "Adresse nicht gefunden";
+  return { lat:d[0].lat, lon:d[0].lon };
 }
 
-function roundUpToQuarterHour(hours){
-  return Math.ceil(hours * 4) / 4;
-}
-function roundUpToStep(amount, step){
-  return Math.ceil(amount / step) * step;
+async function route(a,b){
+  const res = await fetchWithTimeout(
+    `https://router.project-osrm.org/route/v1/driving/${a.lon},${a.lat};${b.lon},${b.lat}?overview=false`
+  );
+  const d = await res.json();
+  return {
+    km: d.routes[0].distance/1000,
+    min: d.routes[0].duration/60
+  };
 }
 
 /* =========================
-   TEXTE
+   ZENTRALE BERECHNUNG
 ========================= */
-const includedText =
-"Die Anfahrtspauschale beinhaltet die komplette Hin- und Rückfahrt, die Fahrtzeit des Teams als Arbeitszeit sowie sämtliche Fahrzeugkosten.";
+async function startCalculation(){
+  const btn = document.getElementById("calcBtn");
+  const out = document.getElementById("out");
+  const addr = document.getElementById("addr").value.trim();
 
-const individualHint =
-"Die dargestellte Anfahrtspauschale dient als transparente Orientierung. Für individuelle Projekte, besondere handwerkliche Leistungen oder längere Einsätze erstellen wir Ihnen selbstverständlich gerne ein passgenaues Angebot.";
+  if(!addr){
+    out.style.display="block";
+    out.innerHTML="Bitte Adresse eingeben.";
+    return;
+  }
 
-const legalHint =
-"Hinweis: Die Anfahrtspauschale gilt für die reguläre An- und Abfahrt. Bei außergewöhnlichen Umständen (z. B. Sperrungen, extreme Staus, Fähren/Insellage, Maut-/Zufahrts- sowie Parkgebühren oder zusätzliche Anfahrten) können Zusatzkosten entstehen. Diese stimmen wir selbstverständlich vorab transparent mit Ihnen ab.";
+  btn.disabled = true;
+  out.style.display="block";
+  out.innerHTML="Berechne…";
 
-const islandHint =
-"Hinweis: Bei Inselanreisen/Fährverbindungen können zusätzliche Kosten (z. B. Fährgebühren oder Insel-Logistik) anfallen. Diese stimmen wir vorab transparent mit Ihnen ab.";
+  try{
+    const a = await geocode(ORIGIN);
+    const b = await geocode(addr);
+    const r = await route(a,b);
 
-function isIsland(text){
-  const t = (text || "").toLowerCase();
-  return ["insel","sylt","spiekeroog","borkum","norderney","fehmarn","helgoland"].some(k => t.includes(k));
+    const kmGes = r.km*2;
+    const std = (r.min*2)/60;
+
+    const netto = (kmGes*0.6)+(std*120)+15;
+    const brutto = netto*(1+VAT_RATE);
+
+    out.innerHTML = `
+      <h3>${money(brutto)} Anfahrtspauschale (inkl. MwSt.)</h3>
+      <p>
+        Entfernung Hinfahrt: ${r.km.toFixed(1)} km |
+        Gesamtkilometer: ${kmGes.toFixed(1)} km<br>
+        Fahrzeit Hinfahrt: ${Math.round(r.min)} Min |
+        Gesamtzeit: ${Math.round(r.min*2)} Min
+      </p>
+      <p><small>Unverbindliche Richtwert-Berechnung. Endpreis kann projektabhängig abweichen.</small></p>
+    `;
+  }catch(e){
+    out.innerHTML="Berechnung aktuell nicht möglich. Bitte erneut versuchen.";
+  }finally{
+    btn.disabled = false;
+  }
 }
 
 /* =========================
-   BERECHNUNG
+   EVENTS
 ========================= */
-function calcPriceNetBase(km_oneway, min_oneway){
-  if (km_oneway > MAX_ONEWAY_KM_FOR_FIXED) return null;
+document.getElementById("calcBtn").addEventListener("click", startCalculation);
 
-  const hours_total = roundUpToQuarterHour((min_oneway * 2) / 60);
-  const travel_cost = hours_total * TEAM_HOURLY * TRAVEL_FACTOR;
+document.getElementById("addr").addEventListener("keydown", (e)=>{
+  if(e.key==="Enter"){
+    e.preventDefault();
+    startCalculation();
+  }
+});
+</script>
 
-  const extra_oneway = Math.max(0, km_oneway - INCLUDED_KM_ONEWAY);
-  const km_cost = extra_oneway * 2 * EXTRA_KM_RATE;
-
-  let total = BASE_FEE + travel_cost + km_cost;
-  total = Math.max(total, MIN_FEE);
-  total = roundUpToStep(total, ROUND_STEP_EUR);
-
-  return Math.round(total);
+</body>
+</html>
