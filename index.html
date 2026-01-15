@@ -4,110 +4,330 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Anfahrtspauschale berechnen | Sanvaro GmbH</title>
-  <meta name="description" content="Anfahrtspauschale schnell berechnen – auf Basis der Straßenroute ab Firmensitz. Preis als Pauschale." />
+  <meta name="description" content="Berechnen Sie Ihre Anfahrtspauschale ab Firmensitz – schnell, transparent und verbindlich als Pauschale." />
+  <meta name="color-scheme" content="dark" />
   <style>
     :root{
-      --bg:#f2f2f2;
-      --card:#ffffff;
-      --text:#222;
-      --muted:#666;
-      --dark:#1f1f1f;
-      --line:#e7e7e7;
-      --shadow:0 4px 14px rgba(0,0,0,.08);
-      --r:14px;
+      --bg:#0f1115;
+      --card:#141825;
+      --card2:#101322;
+      --text:#e9ecf5;
+      --muted:#a8b0c4;
+      --line:rgba(255,255,255,.08);
+      --accent:#7c3aed;
+      --accent2:#22c55e;
+      --danger:#ef4444;
+      --shadow: 0 18px 55px rgba(0,0,0,.55);
+      --radius:18px;
+      --radius2:14px;
+      --font: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, Helvetica, sans-serif;
     }
     *{box-sizing:border-box}
-    body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
+    body{
+      margin:0;
+      font-family:var(--font);
+      background:
+        radial-gradient(1200px 600px at 20% 10%, rgba(124,58,237,.25), transparent 55%),
+        radial-gradient(900px 500px at 80% 0%, rgba(34,197,94,.18), transparent 50%),
+        radial-gradient(800px 600px at 70% 90%, rgba(59,130,246,.14), transparent 55%),
+        var(--bg);
+      color:var(--text);
+    }
     a{color:inherit}
-    .header{background:var(--dark);color:#fff}
-    .header .wrap{max-width:1100px;margin:0 auto;padding:18px 16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
-    .brandTitle{font-size:20px;font-weight:700;letter-spacing:1px}
-    .brandSub{font-size:13px;color:#ccc}
-    .linkTop{color:#fff;text-decoration:none;font-size:14px}
-    .main{max-width:1100px;margin:40px auto;padding:0 16px}
-    .card{background:var(--card);border-radius:var(--r);padding:24px;box-shadow:var(--shadow)}
-    h1{margin:0 0 6px}
-    .hint{color:var(--muted);font-size:15px;margin:0 0 18px}
-    label{font-weight:600;display:block;margin-bottom:6px}
+    .container{max-width:1100px;margin:0 auto;padding:22px 16px 54px}
+    .topbar{
+      display:flex;gap:14px;align-items:center;justify-content:space-between;flex-wrap:wrap;
+      padding:14px 14px;
+      border:1px solid var(--line);
+      border-radius:var(--radius);
+      background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+      box-shadow:0 10px 35px rgba(0,0,0,.35);
+      backdrop-filter: blur(10px);
+    }
+    .brand{display:flex;align-items:center;gap:12px;}
+    .logo{
+      width:44px;height:44px;border-radius:14px;
+      background:
+        radial-gradient(18px 18px at 30% 30%, rgba(255,255,255,.35), transparent 60%),
+        linear-gradient(135deg, rgba(124,58,237,1), rgba(34,197,94,1));
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.12), 0 10px 25px rgba(0,0,0,.35);
+    }
+    .brand h1{margin:0;font-size:16px;letter-spacing:.12em}
+    .brand .tag{margin-top:2px;font-size:12px;color:var(--muted)}
+    .toplinks{display:flex;gap:10px;flex-wrap:wrap}
+    .chip{
+      padding:10px 12px;border-radius:999px;
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.04);
+      text-decoration:none;
+      font-size:13px;
+      transition:.15s transform, .15s background;
+    }
+    .chip:hover{transform:translateY(-1px);background:rgba(255,255,255,.07)}
+    .chip.primary{
+      border-color:rgba(124,58,237,.6);
+      box-shadow:0 0 0 4px rgba(124,58,237,.12);
+    }
+    .hero{
+      margin-top:18px;
+      display:grid;
+      grid-template-columns: 1.1fr .9fr;
+      gap:16px;
+    }
+    @media (max-width: 920px){ .hero{grid-template-columns:1fr} }
+    .panel{
+      border:1px solid var(--line);
+      border-radius:var(--radius);
+      background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+      box-shadow:var(--shadow);
+      overflow:hidden;
+    }
+    .panel .inner{padding:18px}
+    .headline{font-size:28px;line-height:1.15;margin:0 0 10px;letter-spacing:-.02em;}
+    .sub{margin:0 0 12px;color:var(--muted);font-size:14.5px;line-height:1.5;}
+    .pillrow{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+    .pill{
+      font-size:12px;color:var(--muted);
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.03);
+      padding:8px 10px;border-radius:999px;
+      display:flex;gap:8px;align-items:center;
+    }
+    .dot{width:8px;height:8px;border-radius:99px;background:var(--accent2);box-shadow:0 0 0 4px rgba(34,197,94,.14)}
+    .dot.purple{background:var(--accent);box-shadow:0 0 0 4px rgba(124,58,237,.14)}
+    .dot.gray{background:rgba(255,255,255,.28);box-shadow:none}
+
+    .calc{border-top:1px solid var(--line);background:linear-gradient(180deg, rgba(16,19,34,.9), rgba(20,24,37,.9));}
+    .form{display:grid;grid-template-columns: 1fr auto;gap:10px;align-items:end;}
+    @media (max-width: 640px){ .form{grid-template-columns:1fr} }
+    label{display:block;font-size:13px;color:var(--muted);margin-bottom:8px}
     input{
-      width:100%;padding:14px;border:1px solid #ccc;border-radius:10px;
-      font-size:15px;outline:none;
+      width:100%;
+      padding:14px 14px;
+      border-radius:14px;
+      border:1px solid rgba(255,255,255,.12);
+      background:rgba(255,255,255,.04);
+      color:var(--text);
+      outline:none;
+      font-size:15px;
+      transition:.15s border, .15s box-shadow;
     }
-    input:focus{border-color:#999}
+    input:focus{border-color:rgba(124,58,237,.65);box-shadow:0 0 0 4px rgba(124,58,237,.14);}
     .btn{
-      margin-top:14px;padding:14px 22px;border-radius:10px;border:0;background:var(--dark);
-      color:#fff;font-size:15px;cursor:pointer
+      padding:14px 16px;border-radius:14px;
+      border:1px solid rgba(124,58,237,.55);
+      background:linear-gradient(135deg, rgba(124,58,237,1), rgba(34,197,94,1));
+      color:white;font-weight:700;font-size:14.5px;
+      cursor:pointer;transition:.15s transform, .15s filter, .15s opacity;
+      min-width:220px;
     }
-    .btn:disabled{opacity:.7;cursor:not-allowed}
-    .out{
-      display:none;margin-top:18px;padding:18px;border-radius:12px;background:#f7f7f7;border:1px solid var(--line)
+    .btn:hover{transform:translateY(-1px);filter:saturate(1.1)}
+    .btn:disabled{opacity:.65;cursor:not-allowed;transform:none}
+
+    .result{
+      display:none;margin-top:14px;
+      border:1px solid rgba(255,255,255,.10);
+      background:rgba(255,255,255,.03);
+      border-radius:var(--radius);
+      overflow:hidden;
     }
-    .priceRow{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
-    .price{font-size:22px;margin:0}
-    .subnote{margin:6px 0 0;color:var(--muted);font-size:13px}
-    .grid2{margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:10px}
-    @media (max-width:640px){.grid2{grid-template-columns:1fr}}
-    .box{background:#fff;border:1px solid var(--line);border-radius:10px;padding:12px}
-    .k{font-size:12px;color:var(--muted);margin-bottom:6px}
-    .v{font-size:15px;font-weight:700}
-    .cta{margin-top:14px;display:flex;gap:10px;flex-wrap:wrap}
-    .cta a{padding:12px 18px;border-radius:10px;text-decoration:none;border:1px solid #ccc}
-    .cta a.primary{background:var(--dark);color:#fff;border-color:var(--dark)}
-    .small{margin-top:12px;color:var(--muted);font-size:12.5px;line-height:1.45}
-    .footer{background:var(--dark);color:#ccc;margin-top:60px}
-    .footer .wrap{max-width:1100px;margin:0 auto;padding:20px 16px;display:flex;flex-wrap:wrap;gap:14px;justify-content:space-between;align-items:center;font-size:13px}
-    .footer a{color:#ccc;text-decoration:none}
+    .result .top{
+      padding:16px 16px 14px;
+      border-bottom:1px solid rgba(255,255,255,.08);
+      display:flex;gap:12px;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;
+    }
+    .price{font-size:26px;font-weight:900;letter-spacing:-.02em;margin:0;}
+    .vat{margin:6px 0 0;color:var(--muted);font-size:12.5px;}
+    .badge{
+      padding:8px 10px;border-radius:999px;font-size:12px;
+      border:1px solid rgba(255,255,255,.12);
+      background:rgba(255,255,255,.04);
+      color:var(--muted);
+      display:flex;gap:8px;align-items:center;
+    }
+    .badge .bDot{width:8px;height:8px;border-radius:99px;background:rgba(255,255,255,.25)}
+    .badge.good .bDot{background:var(--accent2)}
+    .badge.warn .bDot{background:#f59e0b}
+    .badge.ask  .bDot{background:var(--accent)}
+    .grid2{
+      padding:14px 16px;
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:10px;
+    }
+    @media (max-width: 640px){ .grid2{grid-template-columns:1fr} }
+    .kv{
+      border:1px solid rgba(255,255,255,.08);
+      border-radius:14px;
+      padding:12px 12px;
+      background:rgba(0,0,0,.18);
+    }
+    .kv .k{font-size:12px;color:var(--muted);margin-bottom:6px}
+    .kv .v{font-size:15px;font-weight:700}
+    .notes{padding:0 16px 14px;color:var(--muted);font-size:13px;line-height:1.55;}
+    .cta{
+      padding:14px 16px 16px;
+      display:flex;gap:10px;flex-wrap:wrap;
+      border-top:1px solid rgba(255,255,255,.08);
+      background:rgba(0,0,0,.14);
+    }
+    .cta a{
+      text-decoration:none;border-radius:14px;
+      padding:12px 14px;border:1px solid rgba(255,255,255,.12);
+      background:rgba(255,255,255,.04);
+      font-weight:700;font-size:14px;
+      transition:.15s transform,.15s background;
+    }
+    .cta a:hover{transform:translateY(-1px);background:rgba(255,255,255,.07)}
+    .cta a.primary{
+      border-color:rgba(124,58,237,.55);
+      background:linear-gradient(135deg, rgba(124,58,237,1), rgba(34,197,94,1));
+      color:white;
+    }
+
+    .sideTitle{margin:0 0 10px;font-size:16px}
+    .list{margin:0;padding:0;list-style:none;display:grid;gap:10px}
+    .li{
+      border:1px solid rgba(255,255,255,.08);
+      background:rgba(0,0,0,.18);
+      border-radius:16px;
+      padding:12px 12px;
+      color:var(--muted);
+      font-size:13.5px;
+      line-height:1.5;
+    }
+    .li b{color:var(--text)}
+    .foot{margin-top:18px;text-align:center;color:rgba(255,255,255,.45);font-size:12.5px;}
+    .err{
+      margin-top:12px;padding:12px 14px;border-radius:14px;
+      border:1px solid rgba(239,68,68,.35);
+      background:rgba(239,68,68,.08);
+      color:#fecaca;
+      display:none;
+      font-size:13.5px;line-height:1.5;
+      white-space:pre-line;
+    }
   </style>
 </head>
 
 <body>
-  <!-- HEADER -->
-  <div class="header">
-    <div class="wrap">
-      <div>
-        <div class="brandTitle">SANVARO GMBH</div>
-        <div class="brandSub">Weil Qualität kein Zufall ist</div>
-      </div>
-      <a class="linkTop" href="https://www.sanvaro.de/">Zurück zur Homepage</a>
-    </div>
-  </div>
-
-  <!-- CONTENT -->
-  <div class="main">
-    <div class="card">
-      <h1>Anfahrtspauschale berechnen</h1>
-      <p class="hint">Berechnung nach Straßenroute ab <b>Firmensitz</b>.</p>
-
-      <label for="addr">Ihre Adresse</label>
-      <input id="addr" placeholder="Musterstraße 1, 12345 Musterstadt" autocomplete="street-address" />
-
-      <button id="calcBtn" class="btn">Pauschale berechnen</button>
-
-      <div id="out" class="out"></div>
-
-      <noscript>
-        <div class="out" style="display:block;background:#fff2f2;border:1px solid #ffcccc;">
-          Bitte JavaScript im Browser aktivieren, damit der Rechner funktioniert.
+  <div class="container">
+    <div class="topbar">
+      <div class="brand">
+        <div class="logo" aria-hidden="true"></div>
+        <div>
+          <h1>SANVARO GMBH</h1>
+          <div class="tag">Weil Qualität kein Zufall ist</div>
         </div>
-      </noscript>
+      </div>
+      <div class="toplinks">
+        <a class="chip" href="https://www.sanvaro.de/" rel="noopener">Homepage</a>
+        <a class="chip" href="https://www.sanvaro.de/impressum/" rel="noopener">Impressum</a>
+        <a class="chip" href="https://www.sanvaro.de/datenschutzerklaerung/" rel="noopener">Datenschutz</a>
+        <a class="chip primary" href="https://www.sanvaro.de/" rel="noopener">Zurück zur Website</a>
+      </div>
     </div>
-  </div>
 
-  <!-- FOOTER -->
-  <div class="footer">
-    <div class="wrap">
-      <div>© Sanvaro GmbH</div>
-      <div style="display:flex;gap:16px;flex-wrap:wrap;">
-        <a href="https://www.sanvaro.de/">Homepage</a>
-        <a href="https://www.sanvaro.de/impressum/">Impressum</a>
-        <a href="https://www.sanvaro.de/datenschutzerklaerung/">Datenschutz</a>
+    <div class="hero">
+      <div class="panel">
+        <div class="inner">
+          <h2 class="headline">Anfahrtspauschale in Sekunden berechnen</h2>
+          <p class="sub">
+            Geben Sie Ihre Adresse ein – wir berechnen die Anfahrtspauschale auf Basis der realen Straßenroute ab Firmensitz.
+            Sie sehen nur den Endpreis als Pauschale – übersichtlich und kundenfreundlich.
+          </p>
+          <div class="pillrow">
+            <div class="pill"><span class="dot"></span><span>Deutschlandweit einsetzbar</span></div>
+            <div class="pill"><span class="dot purple"></span><span>Routenbasierte Berechnung</span></div>
+            <div class="pill"><span class="dot gray"></span><span>Preis als Pauschale</span></div>
+          </div>
+        </div>
+
+        <div class="inner calc">
+          <div class="form">
+            <div>
+              <label for="addr">Ihre Adresse</label>
+              <input id="addr" placeholder="z. B. Musterstraße 1, 12345 Musterstadt" autocomplete="street-address" />
+            </div>
+            <button id="calcBtn" class="btn">Pauschale berechnen</button>
+          </div>
+
+          <div id="err" class="err"></div>
+
+          <div id="result" class="result" aria-live="polite">
+            <div class="top">
+              <div>
+                <p id="price" class="price">—</p>
+                <p class="vat" id="vatNote">inkl. 19% MwSt.</p>
+              </div>
+              <div id="badge" class="badge"><span class="bDot"></span><span>—</span></div>
+            </div>
+
+            <div class="grid2">
+              <div class="kv">
+                <div class="k">Entfernung</div>
+                <div class="v" id="distLine">—</div>
+              </div>
+              <div class="kv">
+                <div class="k">Fahrzeit</div>
+                <div class="v" id="timeLine">—</div>
+              </div>
+            </div>
+
+            <div class="notes">
+              <div style="margin-bottom:8px;">
+                <small>
+                  Hinweis: Die Pauschale gilt für die reguläre An- und Abfahrt. Bei außergewöhnlichen Umständen (z. B. Sperrungen,
+                  extreme Staus, Fähren/Insellage, Maut-/Zufahrts- sowie Parkgebühren oder zusätzliche Anfahrten) können Zusatzkosten entstehen.
+                  Diese stimmen wir selbstverständlich vorab transparent mit Ihnen ab.
+                </small>
+              </div>
+              <div><small>
+                Für individuelle Projekte, besondere handwerkliche Leistungen oder längere Einsätze erstellen wir Ihnen selbstverständlich gerne ein passgenaues Angebot.
+              </small></div>
+            </div>
+
+            <div class="cta">
+              <a class="primary" id="mailBtn" href="#">Jetzt anfragen</a>
+              <a id="callSascha" href="#">Sascha anrufen</a>
+              <a id="callJustin" href="#">Justin anrufen</a>
+            </div>
+          </div>
+
+          <noscript>
+            <div class="err" style="display:block;">
+              Bitte JavaScript im Browser aktivieren, damit der Rechner funktioniert.
+            </div>
+          </noscript>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="inner">
+          <h3 class="sideTitle">So funktioniert’s</h3>
+          <ul class="list">
+            <li class="li"><b>1.</b> Adresse eingeben und berechnen.</li>
+            <li class="li"><b>2.</b> Wir nutzen die Straßenroute (nicht Luftlinie).</li>
+            <li class="li"><b>3.</b> Sie erhalten einen <b>sauberen Pauschalpreis</b> – ohne Kosten-Aufschlüsselung.</li>
+            <li class="li"><b>4.</b> Bei sehr großer Entfernung: <b>Pauschale auf Anfrage</b> (individuelles Angebot).</li>
+          </ul>
+
+          <div style="margin-top:14px" class="li">
+            <b>Kontakt</b><br />
+            E-Mail: <span style="color:var(--text)">kontakt@sanvaro.de</span><br />
+            Sascha: <span style="color:var(--text)">+49 176 24740989</span><br />
+            Justin: <span style="color:var(--text)">+49 176 61907607</span>
+          </div>
+
+          <div class="foot">© Sanvaro GmbH</div>
+        </div>
       </div>
     </div>
   </div>
 
 <script>
 /* =========================
-   FESTE DATEN
+   KONTAKT / FIRMENSITZ
 ========================= */
 const ORIGIN = "Holzweg 15, 97656 Oberstreu, Deutschland";
 const CONTACT_EMAIL = "kontakt@sanvaro.de";
@@ -115,95 +335,119 @@ const PHONE_SASCHA = "+4917624740989";
 const PHONE_JUSTIN = "+4917661907607";
 
 /* =========================
-   PREISLOGIK (brutto, kundenfreundlich)
-   - Kunde sieht NUR Endpreis (Pauschale)
-   - Netto intern -> Brutto inkl. 19% MwSt.
-   - Deutlich realistischer als zu niedrige Werte
+   PREISMODELL
 ========================= */
-const VAT = 0.19;
-
-// „Preis auf Anfrage“ ab sehr großer Entfernung
+const VAT_RATE = 0.19;
 const ASK_OVER_ONEWAY_KM = 220;
 
-// Bausteine (netto)
-const BASE_NET = 65;      // Grundpauschale netto
-const MIN_GROSS = 199;    // Mindestpauschale brutto (damit nicht zu günstig)
+const BASE_NET = 65;
+const MIN_GROSS = 149;
 
-// Degressiv: lange Strecken werden pro km / pro Stunde günstiger (aber rentabel)
-const KM_NEAR = 1.05;     // €/km netto (kurz)
-const KM_FAR  = 0.70;     // €/km netto (lang)
-const KM_CURVE = 60;
+const KM_RATE_NEAR = 1.10;
+const KM_RATE_FAR  = 0.70;
+const KM_CURVE = 55;
 
-const H_NEAR = 58;        // €/h netto (kurz)
-const H_FAR  = 34;        // €/h netto (lang)
-const H_CURVE = 2.4;
+const HOUR_RATE_NEAR = 55;
+const HOUR_RATE_FAR  = 32;
+const HOUR_CURVE = 2.2;
 
 const ROUND_STEP = 5;
+const ISLAND_HINT_WORDS = ["insel","sylt","spiekeroog","borkum","norderney","fehmarn","helgoland"];
 
-const includedText =
-"Die Anfahrtspauschale beinhaltet die komplette Hin- und Rückfahrt, die Fahrtzeit des Teams als Arbeitszeit sowie sämtliche Fahrzeugkosten.";
-
-const individualHint =
-"Für individuelle Projekte, besondere handwerkliche Leistungen oder längere Einsätze erstellen wir Ihnen selbstverständlich gerne ein passgenaues Angebot.";
-
-const legalHint =
-"Hinweis: Die Pauschale gilt für die reguläre An- und Abfahrt. Bei außergewöhnlichen Umständen (z. B. Sperrungen, extreme Staus, Fähren/Insellage, Maut-/Zufahrts- sowie Parkgebühren oder zusätzliche Anfahrten) können Zusatzkosten entstehen. Diese stimmen wir selbstverständlich vorab transparent mit Ihnen ab.";
-
-const islandHint =
-"Hinweis: Bei Inselanreisen/Fährverbindungen können zusätzliche Kosten (z. B. Fährgebühren oder Insel-Logistik) anfallen. Diese stimmen wir vorab transparent mit Ihnen ab.";
-
+/* =========================
+   UTIL
+========================= */
+function roundUpToStep(value, step){ return Math.ceil(value / step) * step; }
 function isIsland(text){
   const t = (text || "").toLowerCase();
-  return ["insel","sylt","spiekeroog","borkum","norderney","fehmarn","helgoland"].some(k => t.includes(k));
+  return ISLAND_HINT_WORDS.some(k => t.includes(k));
 }
-
-function roundUpToStep(x, step){ return Math.ceil(x / step) * step; }
-
 function degressiveRate(x, near, far, curve){
   return far + (near - far) * Math.exp(-x / curve);
 }
-
-function euro(n){
-  const v = Math.round(n);
-  return v.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".") + " €";
+function formatKm(x){ return x.toFixed(1).replace(".", ",") + " km"; }
+function formatMin(x){ return Math.round(x) + " Min."; }
+function formatEuro(x){
+  const s = (Math.round(x)).toString();
+  return s.replace(/\B(?=(\d{3})+(?!\d))/g, ".") + " €";
 }
+function safeText(s){ return (s || "").toString().replace(/\s+/g," ").trim(); }
 
-function kmFmt(x){ return x.toFixed(1).replace(".", ",") + " km"; }
-function minFmt(x){ return Math.round(x) + " Minuten"; }
+/* =========================
+   PREIS
+========================= */
+function calcPauschaleGross(km_oneway, min_oneway){
+  if (!isFinite(km_oneway) || !isFinite(min_oneway) || km_oneway <= 0 || min_oneway <= 0) return null;
 
-function calcGross(km_oneway, min_oneway){
-  if(km_oneway >= ASK_OVER_ONEWAY_KM) return { type:"ask" };
+  if (km_oneway >= ASK_OVER_ONEWAY_KM) return { type: "ask" };
 
   const km_total = km_oneway * 2;
   const hours_total = (min_oneway * 2) / 60;
 
-  const kmRate = degressiveRate(km_oneway, KM_NEAR, KM_FAR, KM_CURVE);
-  const hRate  = degressiveRate(hours_total, H_NEAR, H_FAR, H_CURVE);
+  const kmRate = degressiveRate(km_oneway, KM_RATE_NEAR, KM_RATE_FAR, KM_CURVE);
+  const hourRate = degressiveRate(hours_total, HOUR_RATE_NEAR, HOUR_RATE_FAR, HOUR_CURVE);
 
-  const net = BASE_NET + (km_total * kmRate) + (hours_total * hRate);
-  let gross = net * (1 + VAT);
+  const net = BASE_NET + (km_total * kmRate) + (hours_total * hourRate);
 
+  let gross = net * (1 + VAT_RATE);
   gross = Math.max(gross, MIN_GROSS);
   gross = roundUpToStep(gross, ROUND_STEP);
 
-  return { type:"price", gross };
+  return { type: "price", gross };
 }
 
 /* =========================
-   ROUTING (OpenStreetMap + OSRM)
+   NETWORK HELPERS (GitHub Pages safe)
 ========================= */
+const FETCH_TIMEOUT_MS = 12000;
+
+async function fetchJson(url){
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS);
+
+  try{
+    const res = await fetch(url, {
+      method: "GET",
+      mode: "cors",
+      cache: "no-store",
+      headers: {
+        "Accept": "application/json",
+        "Accept-Language": "de-DE,de;q=0.9,en;q=0.6"
+      },
+      signal: ctrl.signal
+    });
+
+    // Nominatim kann 429 senden (Rate Limit)
+    if(!res.ok){
+      const text = await res.text().catch(()=> "");
+      const hint = text ? ("\n" + text.slice(0,140)) : "";
+      throw new Error(`HTTP ${res.status} ${res.statusText}${hint}`);
+    }
+    return await res.json();
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+/* =========================
+   GEOCODE / ROUTE
+   Hinweis: Im Browser kann man keinen eigenen User-Agent setzen.
+   Für produktiven Dauerbetrieb empfiehlt sich mittelfristig ein eigener Geocoder/Proxy.
+========================= */
+let originCache = null;
+
 async function geocode(addr){
-  const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=de&q=${encodeURIComponent(addr)}`;
-  const res = await fetch(url, { headers: { "Accept":"application/json" }});
-  const data = await res.json();
-  if(!data[0]) throw new Error("Adresse nicht gefunden");
-  return { lon:data[0].lon, lat:data[0].lat };
+  const q = encodeURIComponent(addr);
+  const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=de&q=${q}`;
+
+  const data = await fetchJson(url);
+  if (!Array.isArray(data) || !data[0]) throw new Error("Adresse nicht gefunden");
+  return { lon: data[0].lon, lat: data[0].lat, display: data[0].display_name || "" };
 }
 
 async function route(a,b){
-  const url = `https://router.project-osrm.org/route/v1/driving/${a.lon},${a.lat};${b.lon},${b.lat}?overview=false`;
-  const res = await fetch(url, { headers: { "Accept":"application/json" }});
-  const data = await res.json();
+  const url = `https://router.project-osrm.org/route/v1/driving/${a.lon},${a.lat};${b.lon},${b.lat}?overview=false&alternatives=false&steps=false`;
+  const data = await fetchJson(url);
   if(!data.routes || !data.routes[0]) throw new Error("Route nicht gefunden");
   return {
     km_oneway: data.routes[0].distance / 1000,
@@ -214,94 +458,150 @@ async function route(a,b){
 /* =========================
    UI
 ========================= */
-const btn = document.getElementById("calcBtn");
 const addrEl = document.getElementById("addr");
-const out = document.getElementById("out");
+const btn = document.getElementById("calcBtn");
+const resBox = document.getElementById("result");
+const errBox = document.getElementById("err");
 
+const priceEl = document.getElementById("price");
+const vatNoteEl = document.getElementById("vatNote");
+const distLineEl = document.getElementById("distLine");
+const timeLineEl = document.getElementById("timeLine");
+const badgeEl = document.getElementById("badge");
+
+const mailBtn = document.getElementById("mailBtn");
+const callSascha = document.getElementById("callSascha");
+const callJustin = document.getElementById("callJustin");
+
+callSascha.href = `tel:${PHONE_SASCHA}`;
+callJustin.href = `tel:${PHONE_JUSTIN}`;
+
+function showError(msg){
+  errBox.style.display = "block";
+  errBox.textContent = msg;
+}
+function clearError(){
+  errBox.style.display = "none";
+  errBox.textContent = "";
+}
 function setLoading(on){
   btn.disabled = on;
   btn.textContent = on ? "Berechne…" : "Pauschale berechnen";
 }
-
-function render(resultHtml){
-  out.style.display = "block";
-  out.innerHTML = resultHtml;
+function setBadge(kind, text){
+  badgeEl.className = "badge " + kind;
+  badgeEl.querySelector("span:nth-child(2)").textContent = text;
 }
 
-btn.addEventListener("click", async () => {
-  const dest = addrEl.value.trim();
+let lastCalc = null; // für Mail-Text
+
+function buildMailLink(){
+  const subject = "Anfrage Anfahrtspauschale – Sanvaro";
+  const lines = [];
+
+  if(lastCalc){
+    lines.push(`Adresse: ${lastCalc.dest}`);
+    lines.push(`Entfernung (einfach): ${lastCalc.km1.toFixed(1)} km`);
+    lines.push(`Fahrzeit (einfach): ca. ${Math.round(lastCalc.min1)} Min.`);
+    lines.push(`Ergebnis: ${lastCalc.outcomeText}`);
+    lines.push("");
+    lines.push("Bitte kontaktieren Sie mich für die Terminabstimmung. Vielen Dank.");
+  } else {
+    lines.push("Bitte kontaktieren Sie mich für eine Anfrage. Vielen Dank.");
+  }
+
+  const body = encodeURIComponent(lines.join("\n"));
+  return `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(subject)}&body=${body}`;
+}
+
+async function runCalc(){
+  const dest = safeText(addrEl.value);
+  clearError();
+  resBox.style.display = "none";
+  lastCalc = null;
+
   if(!dest){
-    render("Bitte geben Sie eine vollständige Adresse ein.");
+    showError("Bitte geben Sie eine vollständige Adresse ein.");
     return;
   }
 
   setLoading(true);
-  render("Berechne…");
-
   try{
-    const a = await geocode(ORIGIN);
+    // Origin nur einmal geocoden (schont Nominatim, reduziert Fehlerrate)
+    if(!originCache){
+      originCache = await geocode(ORIGIN);
+    }
     const b = await geocode(dest);
-    const r = await route(a,b);
+    const r = await route(originCache, b);
 
     const km_total = r.km_oneway * 2;
     const min_total = r.min_oneway * 2;
 
-    const outcome = calcGross(r.km_oneway, r.min_oneway);
-    const island = isIsland(dest);
+    distLineEl.textContent = `Einfach: ${formatKm(r.km_oneway)}  |  Gesamt: ${formatKm(km_total)}`;
+    timeLineEl.textContent = `Einfach: ca. ${formatMin(r.min_oneway)}  |  Gesamt: ca. ${formatMin(min_total)}`;
 
-    let priceLine = "";
-    let vatLine = "";
-    if(outcome.type === "ask"){
-      priceLine = "Anfahrtspauschale auf Anfrage";
-      vatLine = "Bei dieser Entfernung erstellen wir Ihnen gerne ein individuelles Angebot.";
-    }else{
-      priceLine = `${euro(outcome.gross)} Anfahrtspauschale`;
-      vatLine = "inkl. 19% MwSt.";
+    const outcome = calcPauschaleGross(r.km_oneway, r.min_oneway);
+    if(!outcome){
+      showError("Die Berechnung konnte nicht durchgeführt werden.");
+      return;
     }
 
-    render(`
-      <div class="priceRow">
-        <div>
-          <p class="price"><b>${priceLine}</b></p>
-          <p class="subnote">${vatLine}</p>
-        </div>
-      </div>
+    let outcomeText = "";
 
-      <div class="grid2">
-        <div class="box">
-          <div class="k">Entfernung</div>
-          <div class="v">Einfach: ${kmFmt(r.km_oneway)} &nbsp;|&nbsp; Gesamt: ${kmFmt(km_total)}</div>
-        </div>
-        <div class="box">
-          <div class="k">Fahrzeit</div>
-          <div class="v">Einfach: ca. ${minFmt(r.min_oneway)} &nbsp;|&nbsp; Gesamt: ca. ${minFmt(min_total)}</div>
-        </div>
-      </div>
+    if(outcome.type === "ask"){
+      priceEl.textContent = "Anfahrtspauschale auf Anfrage";
+      vatNoteEl.textContent = "Wir erstellen Ihnen für diese Entfernung gerne ein individuelles Angebot.";
+      setBadge("ask", "Individuelles Angebot");
+      outcomeText = "Anfahrtspauschale auf Anfrage";
+    } else {
+      priceEl.textContent = `${formatEuro(outcome.gross)} Anfahrtspauschale`;
+      vatNoteEl.textContent = "inkl. 19% MwSt.";
 
-      <div class="small" style="margin-top:12px;">
-        ${includedText}<br><br>
-        <i>${individualHint}</i><br><br>
-        ${legalHint}
-        ${island ? `<br><br>${islandHint}` : ""}
-      </div>
+      const k = r.km_oneway;
+      if(k <= 20) setBadge("good","Kurze Strecke");
+      else if(k <= 90) setBadge("warn","Mittlere Strecke");
+      else setBadge("ask","Weite Strecke");
 
-      <div class="cta">
-        <a class="primary" href="mailto:${CONTACT_EMAIL}">Jetzt anfragen</a>
-        <a href="tel:${PHONE_SASCHA}">Sascha anrufen</a>
-        <a href="tel:${PHONE_JUSTIN}">Justin anrufen</a>
-      </div>
-    `);
+      outcomeText = `${formatEuro(outcome.gross)} (inkl. MwSt.)`;
+    }
 
+    if(isIsland(dest)){
+      setBadge("warn","Insel / Fähre möglich");
+      outcomeText += " – Insel/Fähre möglich";
+    }
+
+    // Mail-Link mit Ergebnis befüllen
+    lastCalc = { dest, km1: r.km_oneway, min1: r.min_oneway, outcomeText };
+    mailBtn.href = buildMailLink();
+
+    resBox.style.display = "block";
   }catch(e){
-    render("Adresse konnte nicht berechnet werden. Bitte prüfen Sie Straße, PLZ und Ort.");
+    const msg = String(e && e.message ? e.message : e);
+
+    if(msg.includes("429")){
+      showError(
+        "Der Karten-Dienst ist gerade ausgelastet (Rate-Limit). Bitte warten Sie 30–60 Sekunden und versuchen Sie es erneut."
+      );
+    } else if(msg.includes("AbortError")){
+      showError("Zeitüberschreitung beim Routen-Dienst. Bitte versuchen Sie es erneut.");
+    } else {
+      showError(
+        "Adresse konnte nicht berechnet werden. Bitte prüfen Sie die Eingabe (Straße, PLZ, Ort).\n" +
+        "Tipp: möglichst vollständig mit Hausnummer."
+      );
+    }
   }finally{
     setLoading(false);
   }
+}
+
+btn.addEventListener("click", runCalc);
+addrEl.addEventListener("keydown", (ev) => {
+  if(ev.key === "Enter") runCalc();
 });
 
-addrEl.addEventListener("keydown", (ev) => {
-  if(ev.key === "Enter") btn.click();
-});
+// Initialer Mail-Link (ohne Ergebnis)
+mailBtn.href = buildMailLink();
 </script>
 </body>
 </html>
