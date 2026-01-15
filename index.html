@@ -70,36 +70,18 @@ const PHONE_JUSTIN = "+4917661907607";
 
 /* =========================
    KALKULATION (intern)
+   -> NUR die Berechnungslogik wurde geändert
 ========================= */
-// Teamstundensatz (Meister + Helfer als Team-Pauschale)
-const TEAM_STUNDENSATZ = 80; // €/h
+const TEAM_STUNDENSATZ = 120.00; // €/h (Meister + Helfer als Team) auf Gesamtfahrzeit hin+zurück
+const INSURANCE_BASE = 3.90;     // € pauschal (Versicherungs-/Verschleißanteil)
+const FREE_ZONE_KM_ONEWAY = 5;   // bis inkl. 5 km (einfach) kostenlos
 
-// Kilometerkosten
-const KM_RATE   = 0.60;      // €/km (Hin und zurück)
+// Spritkosten-Modell: 0,09 l/km * 1,65 €/l
+const FUEL_L_PER_KM = 0.09;
+const FUEL_EUR_PER_L = 1.65;
 
-// Zuschlag (soll 0 sein)
-const SURCHARGE = 0.00;
-
-// Preis "auf Anfrage", wenn sehr weit
+// Fernlimit "Preis auf Anfrage" (optional beibehalten)
 const MAX_ONEWAY_KM_FOR_FIXED = 300;
-
-// Rückfahrt günstiger (z.B. 50% der Rückfahrzeit berechnen)
-const RETURN_TIME_FACTOR = 0.50; // 0.0 = Rückfahrt nicht, 0.5 = halb, 1.0 = voll
-
-// Mindestpauschale (damit kurze Strecken nicht zu billig werden)
-const MIN_FEE = 99; // €
-
-// Ring-/Staffelung: bis X km (Hinfahrt) wird auf Zonen-Schritt gerundet
-// Beispiel: 0–20 km => 20er Ring, 20–40 => 40er Ring etc.
-// Du kannst die Ringe hier leicht anpassen.
-const RINGS = [
-  { maxKm: 20,  stepKm: 5 },   // innerhalb 20 km: auf 5-km-Schritte
-  { maxKm: 40,  stepKm: 10 },  // bis 40 km: auf 10-km-Schritte
-  { maxKm: 80,  stepKm: 10 },  // bis 80 km: auf 10-km-Schritte
-  { maxKm: 120, stepKm: 20 },  // bis 120 km: auf 20-km-Schritte
-  { maxKm: 200, stepKm: 25 },  // bis 200 km: auf 25-km-Schritte
-  { maxKm: 300, stepKm: 50 }   // bis 300 km: auf 50-km-Schritte
-];
 
 /* =========================
    TEXTE
@@ -116,9 +98,6 @@ const legalHint =
 const islandHint =
 "Hinweis: Bei Inselanreisen/Fährverbindungen können zusätzliche Kosten (z. B. Fährgebühren oder Insel-Logistik) anfallen. Diese stimmen wir vorab transparent mit Ihnen ab.";
 
-/* =========================
-   HELFER
-========================= */
 function isIsland(text){
   const t = (text || "").toLowerCase();
   return ["insel","sylt","spiekeroog","borkum","norderney","fehmarn","helgoland"].some(k => t.includes(k));
@@ -128,47 +107,55 @@ function roundUpToQuarterHour(hours){
   return Math.ceil(hours * 4) / 4; // 15-Minuten-Schritte
 }
 
-function pickRingStep(km_oneway){
-  for(const r of RINGS){
-    if(km_oneway <= r.maxKm) return r.stepKm;
-  }
-  return null;
-}
-
-function roundUpKmToRing(km_oneway){
-  const step = pickRingStep(km_oneway);
-  if(step === null) return null; // außerhalb der Ring-Definition
-  return Math.ceil(km_oneway / step) * step;
-}
-
 /* =========================
-   PREISLOGIK
-   - km: Hin und zurück voll
-   - Zeit: Hinfahrt voll + Rückfahrt anteilig (RETURN_TIME_FACTOR)
-   - danach Mindestpauschale + optionaler Zuschlag (hier 0)
-   - Ringlogik: Berechnung basiert auf gerundetem km_oneway (Zonen)
+   NEUE DEGRESSIVE LOGIK (inkl. Wow-Effekt)
+   - Basis = Sprit + Personal + 3,90 €
+   - bis 5 km (einfach): kostenlos
+   - darüber: dynamischer Gewinnaufschlag (ca. 30–40% bei kurzen Strecken,
+     flacht logarithmisch ab bei langen Strecken)
+   - Endpreis: auf nächste 5 € aufrunden
 ========================= */
+function roundUpToNext5Euro(amount){
+  return Math.ceil(amount / 5) * 5;
+}
+
+// Logarithmischer, degressiver Aufschlag in Prozent (0.40..0.12)
+function dynamicMarkupRate(km_oneway){
+  // Referenzpunkte (gefühlt/marktorientiert):
+  // ~40% bei 5 km, ~30% bei 20 km, ~22% bei 50 km, ~16% bei 150 km, min 12% darüber
+  const k = Math.max(km_oneway, FREE_ZONE_KM_ONEWAY + 0.0001);
+
+  // ln(k/5): wächst langsam -> sorgt fürs "Abflachen"
+  const x = Math.log(k / FREE_ZONE_KM_ONEWAY);
+
+  // Start 0.40, fällt mit x ab
+  let rate = 0.40 - 0.10 * x; // degressiv
+
+  // Unter- und Obergrenzen
+  rate = Math.max(0.12, Math.min(0.40, rate));
+  return rate;
+}
+
 function calcPrice(km_oneway, min_oneway){
   if(km_oneway > MAX_ONEWAY_KM_FOR_FIXED) return null;
 
-  // Ring-/Zonen-Rundung auf Basis der Hinfahrt-km
-  const km_oneway_rounded = roundUpKmToRing(km_oneway);
-  if(km_oneway_rounded === null) return null;
+  // Kostenlos-Zone (einfach)
+  if(km_oneway <= FREE_ZONE_KM_ONEWAY) return 0;
 
-  // Kilometer immer Hin und zurück (auf Basis der gerundeten Zonen-km)
-  const km_total = km_oneway_rounded * 2;
+  const km_total = km_oneway * 2;
+  const hours_total = roundUpToQuarterHour((min_oneway * 2) / 60);
 
-  // Fahrzeit: Hinfahrt voll, Rückfahrt anteilig
-  const hours_out = (min_oneway / 60);
-  const hours_back = (min_oneway / 60) * RETURN_TIME_FACTOR;
-  const hours_billable = roundUpToQuarterHour(hours_out + hours_back);
+  // Basis-Kosten
+  const C_sprit = km_total * FUEL_L_PER_KM * FUEL_EUR_PER_L;
+  const C_personal = hours_total * TEAM_STUNDENSATZ;
+  const C_basis = C_sprit + C_personal + INSURANCE_BASE;
 
-  const base = (hours_billable * TEAM_STUNDENSATZ) + (km_total * KM_RATE);
-  const withSurcharge = base * (1 + SURCHARGE);
+  // Dynamischer Aufschlag (logarithmisch degressiv)
+  const markup = dynamicMarkupRate(km_oneway);
+  const C_pauschal = C_basis * (1 + markup);
 
-  // Mindestpauschale
-  const final = Math.max(withSurcharge, MIN_FEE);
-  return Math.round(final);
+  // Runde auf "saubere" 5€-Pauschale
+  return roundUpToNext5Euro(C_pauschal);
 }
 
 /* =========================
@@ -210,40 +197,21 @@ document.getElementById("calcBtn").addEventListener("click", async () => {
     const price = calcPrice(r.km_oneway, r.min_oneway);
     const island = isIsland(dest);
 
-    // Anzeige: reale Route (Info) + Ring (für Transparenz optional)
-    const km_total_real = r.km_oneway * 2;
+    const km_total = r.km_oneway * 2;
     const min_total = Math.round(r.min_oneway * 2);
-
-    // Ring-/Zonen-km (für Berechnungsgrundlage)
-    const km_oneway_ring = roundUpKmToRing(r.km_oneway);
-    const km_total_ring = (km_oneway_ring !== null) ? km_oneway_ring * 2 : null;
 
     out.innerHTML = `
       <h3>${price !== null ? (price + " €") : "Preis auf Anfrage"} Anfahrtspauschale</h3>
-
       <p>
-        Entfernung (Hinfahrt): ${r.km_oneway.toFixed(1)} km<br>
-        Entfernung (Hin und zurück): ${km_total_real.toFixed(1)} km<br>
-        Fahrzeit (Hinfahrt): ca. ${Math.round(r.min_oneway)} Minuten<br>
-        Fahrzeit (Hin und zurück): ca. ${min_total} Minuten
+        Entfernung (Straße, einfach): ${r.km_oneway.toFixed(1)} km<br>
+        Entfernung (Hin & Rück): ${km_total.toFixed(1)} km<br>
+        Fahrzeit (einfach): ca. ${Math.round(r.min_oneway)} Minuten<br>
+        Fahrzeit (Hin & Rück): ca. ${min_total} Minuten
       </p>
-
-      <p style="margin-top:10px;">
-        <small>
-          Abrechnung als Pauschale (Zonenmodell): ${
-            km_oneway_ring !== null
-              ? `Berechnungsgrundlage: ${km_oneway_ring} km (Hinfahrt-Zone) / ${km_total_ring} km (Hin und zurück)`
-              : `Berechnungsgrundlage: außerhalb der definierten Zonen`
-          }.
-          Rückfahrtzeit wird anteilig berücksichtigt.
-        </small>
-      </p>
-
       <p>${includedText}</p>
       <p style="font-style:italic;">${individualHint}</p>
       <p><small>${legalHint}</small></p>
       ${island ? `<p><small>${islandHint}</small></p>` : ""}
-
       <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;">
         <a href="mailto:${CONTACT_EMAIL}" style="padding:12px 18px;border-radius:10px;background:#1f1f1f;color:#fff;text-decoration:none;">Jetzt anfragen</a>
         <a href="tel:${PHONE_SASCHA}" style="padding:12px 18px;border-radius:10px;border:1px solid #ccc;text-decoration:none;">Sascha anrufen</a>
