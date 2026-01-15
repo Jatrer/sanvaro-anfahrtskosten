@@ -78,28 +78,44 @@ function moneyEUR(n){
 }
 
 /* =========================
-   PREISMODELL (Basis)
+   PREISMODELL (Basis) – ANGEPASST
+   Ziel: kurze Strecken deutlich günstiger, lange Strecken weiterhin plausibel
 ========================= */
-const BASE_FEE = 50;
-const INCLUDED_KM_ONEWAY = 20;
-const EXTRA_KM_RATE = 0.50;
-const TEAM_HOURLY = 100;
-const TRAVEL_FACTOR = 0.65;
-const MIN_FEE = 99;
+const BASE_FEE = 25;                 // vorher 50
+const INCLUDED_KM_ONEWAY = 20;       // bleibt 20
+const EXTRA_KM_RATE = 0.70;          // vorher 0.50 (leicht rauf, dafür andere Komponenten runter)
+const TEAM_HOURLY = 100;             // bleibt 100
+const TRAVEL_FACTOR = 0.35;          // vorher 0.65 (Fahrtzeit wird nicht mehr so hart bepreist)
+const MIN_FEE = 75;                  // vorher 99 (senkt Mindestpreis außerhalb der Zonen)
 const MAX_ONEWAY_KM_FOR_FIXED = 300;
 const ROUND_STEP_EUR = 5;
 
 /* =========================
-   NEU: Konkurrenz-Abflachung
+   NEU: LOKALE ZONENPREISE (NETTO)
+   - 0–5 km: 0 €
+   - >5–15 km: 35 €
+   - >15–30 km: 55 €
+   Ab >30 km gilt wieder dein Rechenweg (Fahrtzeit + km), nur realistischer parametriert.
 ========================= */
-const COMP_HIGH = 1.164;
-const COMP_LOW  = 0.80;
-const COMP_K0   = 162;
-const COMP_A    = 2.65;
+const ZONE_0_TO_5_NET   = 0;
+const ZONE_5_TO_15_NET  = 35;
+const ZONE_15_TO_30_NET = 55;
+
+/* =========================
+   NEU: Konkurrenz-/Markt-Faktor – ANGEPASST
+   Vorher: kurze Strecken wurden mit Faktor >1 eher teurer.
+   Jetzt: kurze Strecken etwas günstiger, lange Strecken leicht normalisiert.
+========================= */
+const COMP_LOW  = 0.85;   // Faktor bei kurzen Gesamt-km
+const COMP_HIGH = 1.05;   // Faktor bei langen Gesamt-km
+const COMP_K0   = 180;
+const COMP_A    = 2.2;
 
 function competitiveFactor(km_total){
-  const f = COMP_LOW + (COMP_HIGH - COMP_LOW) / (1 + Math.pow(km_total / COMP_K0, COMP_A));
-  return Math.min(1.18, Math.max(0.78, f));
+  // monotone Steigerung: klein -> COMP_LOW, groß -> COMP_HIGH
+  const x = Math.pow(km_total / COMP_K0, COMP_A);
+  const f = COMP_LOW + (COMP_HIGH - COMP_LOW) * (x / (1 + x));
+  return Math.min(1.10, Math.max(0.80, f));
 }
 
 function roundUpToQuarterHour(hours){
@@ -130,11 +146,17 @@ function isIsland(text){
 }
 
 /* =========================
-   BERECHNUNG
+   BERECHNUNG – ANGEPASST
 ========================= */
 function calcPriceNetBase(km_oneway, min_oneway){
   if (km_oneway > MAX_ONEWAY_KM_FOR_FIXED) return null;
 
+  // 1) ZONENMODELL: kurze Strecken sehr fair
+  if (km_oneway <= 5)  return ZONE_0_TO_5_NET;
+  if (km_oneway <= 15) return ZONE_5_TO_15_NET;
+  if (km_oneway <= 30) return ZONE_15_TO_30_NET;
+
+  // 2) AB >30 km: dein bisheriger Rechenweg (Zeit + km) mit realistischeren Parametern
   const hours_total = roundUpToQuarterHour((min_oneway * 2) / 60);
   const travel_cost = hours_total * TEAM_HOURLY * TRAVEL_FACTOR;
 
