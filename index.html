@@ -33,7 +33,6 @@
       style="width:100%;padding:14px;border:1px solid #ccc;border-radius:10px;margin-top:6px;font-size:15px;">
 
     <button id="calcBtn"
-      type="button"
       style="margin-top:14px;padding:14px 22px;border-radius:10px;border:0;background:#1f1f1f;color:#fff;font-size:15px;cursor:pointer;">
       Anfahrtskosten berechnen
     </button>
@@ -72,14 +71,14 @@ const PHONE_JUSTIN = "+4917661907607";
 /* =========================
    STEUERN / MWST
 ========================= */
-const VAT_RATE = 0.19; // Regelsteuersatz (DE)
+const VAT_RATE = 0.19;
 
 function moneyEUR(n){
   return `${Math.round(n).toLocaleString("de-DE")} €`;
 }
 
 /* =========================
-   PREISMODELL (final)
+   PREISMODELL (Basis)
 ========================= */
 const BASE_FEE = 50;
 const INCLUDED_KM_ONEWAY = 20;
@@ -91,7 +90,7 @@ const MAX_ONEWAY_KM_FOR_FIXED = 300;
 const ROUND_STEP_EUR = 5;
 
 /* =========================
-   NEU: Konkurrenz-Abflachung (wie zuletzt)
+   NEU: Konkurrenz-Abflachung
 ========================= */
 const COMP_HIGH = 1.164;
 const COMP_LOW  = 0.80;
@@ -131,7 +130,7 @@ function isIsland(text){
 }
 
 /* =========================
-   BERECHNUNG (wie zuletzt)
+   BERECHNUNG
 ========================= */
 function calcPriceNetBase(km_oneway, min_oneway){
   if (km_oneway > MAX_ONEWAY_KM_FOR_FIXED) return null;
@@ -146,7 +145,7 @@ function calcPriceNetBase(km_oneway, min_oneway){
   total = Math.max(total, MIN_FEE);
   total = roundUpToStep(total, ROUND_STEP_EUR);
 
-  return Math.round(total); // Netto
+  return Math.round(total);
 }
 
 function applyCompetitiveNet(net, km_total){
@@ -162,8 +161,7 @@ function calcGrossFromNet(net){
 }
 
 /* =========================
-   STABILE FETCHES (NEU)
-   -> verhindert "Hänger"
+   STABILE FETCHES (Timeout)
 ========================= */
 function fetchWithTimeout(url, ms = 12000){
   const controller = new AbortController();
@@ -175,7 +173,7 @@ function fetchWithTimeout(url, ms = 12000){
 }
 
 /* =========================
-   ROUTING (wie vorher, nur stabiler)
+   ROUTING
 ========================= */
 async function geocode(addr){
   const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=de&q=${encodeURIComponent(addr)}`;
@@ -199,10 +197,9 @@ async function route(a,b){
 }
 
 /* =========================
-   ZENTRAL: RECHNEN (NEU)
-   -> wird von Klick UND Enter genutzt
+   UI
 ========================= */
-async function runCalc(){
+document.getElementById("calcBtn").addEventListener("click", async () => {
   const btn = document.getElementById("calcBtn");
   const dest = document.getElementById("addr").value.trim();
   const out = document.getElementById("out");
@@ -210,7 +207,6 @@ async function runCalc(){
   out.style.display = "block";
   out.innerHTML = "Berechne…";
 
-  // Button währenddessen sperren, aber am Ende immer entsperren
   btn.disabled = true;
   btn.style.opacity = "0.7";
   btn.style.cursor = "not-allowed";
@@ -270,20 +266,6 @@ async function runCalc(){
     btn.disabled = false;
     btn.style.opacity = "1";
     btn.style.cursor = "pointer";
-  }
-}
-
-/* =========================
-   EVENTS (NEU)
-========================= */
-// Maus-Klick
-document.getElementById("calcBtn").addEventListener("click", runCalc);
-
-// Enter im Eingabefeld
-document.getElementById("addr").addEventListener("keydown", (e) => {
-  if (e.key === "Enter") {
-    e.preventDefault();
-    runCalc();
   }
 });
 </script>
